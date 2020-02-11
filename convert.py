@@ -1,31 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# Märkused:
-#   1. lühendid, millel on mitu võimalikku vastet (nt s, km, v.a) – hetkel sõnastikus igal vaid üks vaste
-#   2. mõttekriipsuga tähistatakse nii miinusmärki kui ka teatud juhtudel vahemikku (kui eraldatavad arvud sisaldavad
-#   tühikuid, nt 20 000 – 30 000 eurot). hetkel loetakse tühikutega eraldatud mõttekriipsud miinusteks, eraldamata
-#   vahemikeks
-#   3. vahemike tähistamiseks eeldatakse mõttekriipsu, mitte sidekriipsu kasutamist. sidekriipsu puhul ei hääldu välja
-#   sõna 'kuni', ehkki ülejäänud käsitlus on sama
-#   4. Rooma numbrite tuvastamine on probleemne – paljudel juhtudel ei saa need 'O' sõnaliigimärgendit, seega tuleb
-#   kontrollida ka lühendeid ja pärisnimesid ('Y' ja 'H'), mis aga võib viia nt I märgi (voolutugevus) 
-#   teisendamiseni 'esimeseks'. hetkel erandina kaetud C, mis ei teisendu 'sajandaks', kui eelneb kraadimärk (Celsius)
-#   5. kas sünteesitud vormidest esimene võtta on parim variant? nt 'viisteist' jms juhtudel on esimene vorm lühem, 
-#   teine pikem (viieteist vs viieteistkümne) NB! nt sõna 'kolmas' käänamisel on esimene variant vähelevinud 'kolmat', 
-#   alles teisena 'kolmandat'
-#   6. aadressid jms juhud, kus sõna saab 'Y' ehk lühendi märgendi – hetkel lahendatud nii, et katab tavalisemad
-#   aadresside ja klassinumbrite juhtumid nagu 18a-10 või 5.b
-#   7. telefoninumbreid ja isikukoode ei ole eraldi käsitletud, teisenduvad n-ö suurte arvudena
-#   8. väljajätuga sõnad, nt p***e, lemmatiseeritakse tähthaaval ja võivad saada lühendite teisendused, 
-#   nt punkt***ehk
-#   9. EstNLTK lemmatiseerib kolme punktiga väljendatud vahemikud üheks lemmaks, nt '19...21', aga samatähenduslik 
-#       19–20 lemmatiseeritakse eraldi ehk '19', '–', '20'. hetkel ei hääldu kolme punkti korral välja sõna 'kuni'
-#   10. juhtumid, kus arv on tühikutega grupeeritud ja omab lõpuliidet – nt '20 300-eurone tšekk' teisendub 
-#   'kahekümne kolmesaja eurone', sest lemmatiseerimisel jäävad eraldi '20' ja '300-eurone'
-#   11. murdarvud teisenduvad kui tavalised arvud (ei ole eraldi käsitlust), nt 2/5 -> 'kaks viis', mitte 'kaks
-#   viiendikku', sest kaldkriipsuga tähistatakse ka aastaid (2016/17), aadresse (Kivi 10/3) jms, kus sama lähenemine
-#   ei sobiks. viide: https://keeleabi.eki.ee/viki/Kaldkriips.html
-
 
 import re
 from estnltk import Text
