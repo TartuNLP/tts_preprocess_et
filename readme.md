@@ -4,9 +4,9 @@ Converts Estonian texts to a suitable format for speech synthesis. That includes
 
 The script follows Estonian ortography rules. Internationally used forms are only converted when these do not
  conflict with any Estonian use cases.
-- Ranges use a long dash (not a hyphen).
+- Ranges use a dash (not a hyphen).
 - Long numbers are grouped by spaces (not commas or dots)
-- Long dashes between numbers that are separated by spaces are considered to be minuses, otherwise they are ranges
+- Dashes between numbers that are separated by spaces are considered to be minuses, otherwise they are ranges
 - Decimal fractions use commas (not dots) 
 
 ### Requirement:
