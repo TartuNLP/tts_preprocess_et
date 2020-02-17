@@ -845,7 +845,7 @@ def get_string(text, index, tag, synthesizer):
     return as_string
 
 
-def convert_sentence(sentence, synthesizer):
+def convert_sentence(sentence, synthesizer=vabamorf):
     # sentence: sõne kujul lause
     # synthesizer: Vabamorfi instants
 
