@@ -108,27 +108,6 @@ def convert_number(number, sg_nominative):
     return ' '.join(number_as_string)
 
 
-# funktsioon, mis võtab sõne kujule teisendatud arvu ja normaliseerib selle
-
-def normalize_string(number, number_as_string):
-    # number: lemmatiseeritud sõne kujul arv, nt '100', ilma käändelõputa
-    # number_as_string: sõnalisele algkujule viidud arv, nt 'sada'
-
-    # eemaldame sõnade vahelt üleliigsed tühikud
-    number_as_string = re.sub(r'\s{2,}', ' ', number_as_string)
-
-    # eemaldame 'üks' sõne algusest, v.a juhul, kui arv ongi 1 või 11 (nt ükssada -> sada)
-    # või siis, kui järgneb koma (nt üks koma viis), või kui arv on 1. (järgarv)
-    match = re.match('^üks(?! koma|teist)', number_as_string)
-    if len(number) > 1 and match and number != '1.':
-        # asendame esimese (vasakpoolseima) ühe tühisõnega
-        number_as_string = re.sub('üks', '', number_as_string, count=1)
-
-    # eemaldame sõne ümbert üleliigsed tühikud
-    number_as_string = number_as_string.strip()
-    return number_as_string
-
-
 # funktsioon, mis teisendab normaliseeritud sõne kujul arvu viimase osa järgarvuks
 
 def make_ordinal(number_as_string, synthesizer):
@@ -405,8 +384,6 @@ def get_string(text, index, tag, synthesizer):
             is_sg_nom = True
         # teisendame arvu sõnalisele kujule
         as_string = convert_number(lemma, is_sg_nom)
-        # normaliseerime
-        as_string = normalize_string(lemma, as_string)
 
     else:
         # leiame teisenduse sõnastikust
