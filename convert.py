@@ -592,16 +592,6 @@ def get_string(text, index, tag, synthesizer):
     # võtame esimese lemma
     lemma = text.morph_analysis.lemma[index][0]
 
-    # kontrollime, ega lemmatiseerimisel pole sõnesiseseid punkte kaduma läinud
-    # (nt 2.3.2018 võib muutuda '232018'-ks)
-    if 1 < lemma.count('.') < text.words[index].text.count('.'):
-        lemma = text.words[index].text
-
-    # kontrollime, et lemmatiseerimisel ei oleks häälduvat sümbolit sõna algusest kaduma läinud
-    # (nt +4 võib muutuda 4-ks)
-    if text.words[index].text[0] in voc_symbol_dict and lemma[0] not in voc_symbol_dict:
-        lemma = text.words[index].text[0] + lemma
-
     # Rooma numbrid teisendame araabia numbriteks
     if tag == 'O' and re.match(r'^[IVXLCDM]+-?\w*$', lemma):
         ordinal = True
@@ -739,10 +729,6 @@ def get_string(text, index, tag, synthesizer):
         as_string = normalize_string(lemma, as_string)
 
     else:
-        # kui lühend/sümbol lause või otsekõne alguses, siis kontrollime, kas lemma esisuurtähega.
-        # kui jah, siis viime väiketähtkujule
-        if index == 0 or (index > 0 and text.words[index - 1].text == '"') and lemma.istitle():
-            lemma = lemma[0].swapcase() + lemma[1:]
         # leiame teisenduse sõnastikust
         if lemma in voc_symbol_dict:
             as_string = voc_symbol_dict[lemma]
@@ -869,13 +855,24 @@ def convert_sentence(sentence, synthesizer=vabamorf):
         text_string = text.words[i].text
         text_lemma = text.words[i].lemma[0]
         last_index = len(text.words) - 1
+
+        # kontrollime, ega lemmatiseerimisel pole sõnesiseseid punkte kaduma läinud
+        # (nt 2.3.2018 võib muutuda '232018'-ks)
+        if 1 < text_lemma.count('.') < text_string.count('.'):
+            text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string
+
+        # kontrollime, et lemmatiseerimisel ei oleks häälduvat sümbolit sõna algusest kaduma läinud
+        # (nt +4 võib muutuda 4-ks)
+        if text_string[0] in voc_symbol_dict and text_lemma[0] not in voc_symbol_dict:
+            text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string[0] + text_lemma
+
         # võtame esimese sõnaliigimärgendi (nagu ka esimese lemma)
         postag = postag_list[0]
         # sõnastikku paneme indeksi ainult siis, kui vastab meie kriteeriumidele
         if postag in misc_postags:
             # lühendid lause või otsekõne alguses võivad saada esisuurtähega lemmad, viime väiketähtkujule
-            if i == 0 or (i > 0 and text.words[i - 1].text == '"') and text_lemma.istitle():
-                text_lemma = text_lemma[0].swapcase() + text_lemma[1:]
+            if (i == 0 or (i > 0 and text.words[i - 1].text == '"')) and text_lemma.istitle():
+                text_lemma = text.morph_analysis[i].annotations[0].lemma = text_lemma.lower()
             if text_lemma in voc_symbol_dict or text_lemma in abbrev_dict:
                 if text_lemma not in in_betweens:
                     tag_indices['M'].append(i)
