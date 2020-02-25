@@ -47,7 +47,7 @@ The script follows the rules of Estonian orthography. Internationally used forms
     - [ ] Differentiating simple fractions from years, addresses, etc. Currently there is no support for simple fractions. Example: `2/5 → [kaks viis, kaks viiendikku]`
     - [ ] Numbers at the end of a sentence (followed by a dot) could be either cardinal or ordinal. Currently converted to cardinal numbers.
 - [ ] Converting special cases of numbers, such as national ID numbers, phone numbers, etc.
-- [ ] Ranges that use three dots. Example: `1...5 → `<del>`üks viis`</del>` üks kuni viis`
+- [x] Ranges that use three dots. Example: `1...5 → `<del>`üks viis`</del>` üks kuni viis`
 - [ ] Numbers grouped by spaces followed by a *-ne*/*-line* adjective. Example: `20 300-eurone tšekk → `<del>`kahekümne kolmesaja eurone tšekk`</del>` kahekümne tuhande kolmesaja eurone tšekk`
 - [x] Simple addresses. Example: `2-10 → kaks kümme; 5b → viis b`
 - [ ] Addresses with an apartment number and a specifying letter. Example: `5a-1 → viis a üks`
