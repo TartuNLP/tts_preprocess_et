@@ -35,14 +35,14 @@ The script follows the rules of Estonian orthography. Internationally used forms
 - [x] Dates. Example: `01.01.2000 → Null üks null üks kaks tuhat`
 - [x] Times. Example: `12.30 → kaksteist kolmkümmend`
 - [x] Scores. Example: `11:15 → üksteist viisteist`
-- [ ] Numbers that contain more than one dot. Example: `1.25.16,2 → `<del>`kaksteist tuhat viissada kuusteist koma kaks`</del>`üks kakskümmend viis kuusteist koma kaks`
+- [x] Numbers that contain more than one dot. Example: `1.25.16,2 → `<del>`kaksteist tuhat viissada kuusteist koma kaks`</del>`üks kakskümmend viis kuusteist koma kaks`
 - [ ] Converting capitalized abbreviations. Example: `ATV → aa-tee-vee; MP3 → emm-pee-kolm` 
 - [ ] Converting URLs. Example: `www.eesti.ee → vee-vee-vee punkt eesti punkt ee-ee`
 - [ ] Converting terminative Roman numerals. Example: `I. → esiteks`
 - [ ] Handling conversions with multiple possible outcomes (producing all options or somehow picking the best one). Currently we have tried to opt for the interpretation that can be used in as many situations as possible. Example: `10.05 → `<del>`kümnes mai, kümme läbi viis minutit,`</del>` kümme null viis`
     - [ ] Abbreviations that have multiple uses. Currently each abbreviation is limited to one interpretation. Example: `v.a → [välja arvatud, väga austatud]`
     - [ ] Words that can be declined in different ways. Currently the first option produced by the Vabamorf synthesizer in EstNLTK is used. Example: `15 inimese → [viietest inimese, viieteistkümne inimese]; 3. inimest → [kolmat inimest, kolmandat inimest]`
-    - [ ] A long dash between numbers that contain spaces. Currently we assume that it is a mathematical equation and not a range. Example: `5000 – 10 000 → [viis tuhat miinus kümme tuhat, viis tuhat kuni kümme tuhat]`
+    - [ ] A dash between numbers that contain spaces. Currently we assume that it is a mathematical equation and not a range. Example: `5000 – 10 000 → [viis tuhat miinus kümme tuhat, viis tuhat kuni kümme tuhat]`
     - [ ] Roman numerals that may also be abbreviations. Currently we assume them to be numerals except for 'C'. Example: `C → [Celsius, sajas]; I → [üks, voolutugevus]`
     - [ ] Differentiating simple fractions from years, addresses, etc. Currently there is no support for simple fractions. Example: `2/5 → [kaks viis, kaks viiendikku]`
     - [ ] Numbers at the end of a sentence (followed by a dot) could be either cardinal or ordinal. Currently converted to cardinal numbers.

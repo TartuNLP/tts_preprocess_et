@@ -72,6 +72,7 @@ def convert_number(number, sg_nominative):
                 for character in element:
                     number_as_string.append(cardinal_numbers[character])
             else:  # grouping numbers into 3 digit blocks
+                element_as_string = []
                 blocks = []
                 index = len(element)
                 while index >= 3:
@@ -87,21 +88,22 @@ def convert_number(number, sg_nominative):
                         remaining_blocks = len(blocks[i:])
                         group_text = cardinal_numbers[remaining_blocks]
                         block_converted = convert_digit_block(block)
-                        number_as_string += block_converted
+                        element_as_string += block_converted
 
                         # if nominative and plural 'miljon' and larger change to partitive
                         if sg_nominative and remaining_blocks >= 3 and block_converted != ['üks']:
                             group_text += 'it'
                         if remaining_blocks > 1:
-                            number_as_string.append(group_text)
+                            element_as_string.append(group_text)
+                # remove 'üks' and 'ükssada' from the beginning unless the number is 1
+                if element_as_string[0] == 'üks' and len(element_as_string) > 1:
+                    element_as_string = element_as_string[1:]
+                elif element_as_string[0] == 'ükssada':
+                    element_as_string[0] = 'sada'
+                number_as_string += element_as_string
+
         elif element:
             number_as_string.append(element)
-
-    # remove 'üks' and 'ükssada' from the beginning unless the number is 1 or 1,...
-    if number_as_string[0] == 'üks' and len(number_as_string) > 1 and number_as_string[1] != 'koma':
-        number_as_string = number_as_string[1:]
-    elif number_as_string[0] == 'ükssada':
-        number_as_string[0] = 'sada'
 
     return ' '.join(number_as_string)
 
@@ -514,7 +516,7 @@ def convert_sentence(sentence):
 
         # kontrollime, ega lemmatiseerimisel pole sõnesiseseid punkte kaduma läinud
         # (nt 2.3.2018 võib muutuda '232018'-ks)
-        if 1 < text_lemma.count('.') < text_string.count('.'):
+        if text_lemma.count('.') < text_string.count('.'):
             text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string
 
         # kontrollime, et lemmatiseerimisel ei oleks häälduvat sümbolit sõna algusest kaduma läinud
