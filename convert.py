@@ -492,6 +492,9 @@ def convert_sentence(sentence, synthesizer=vabamorf):
     # sentence: sõne kujul lause
     # synthesizer: Vabamorfi instants
 
+    # manual substitutions:
+    sentence = re.sub(r'(\d)\.\.\.(\d)', r'\g<1> kuni \g<2>', sentence)
+
     # teostame lausel morf. analüüsi
     text = Text(sentence).analyse('morphology')
 
