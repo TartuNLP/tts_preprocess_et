@@ -4,295 +4,9 @@
 import re
 from estnltk import Text
 from estnltk.vabamorf.morf import Vabamorf
-from collections import defaultdict
 from collections import OrderedDict
+from .assets import *
 
-voc_symbol_dict = {'@': 'ät', '$': 'dollar', '%': 'protsent', '&': 'ja', '+': 'pluss',
-                   '=': 'võrdub', '€': 'euro', '£': 'nael', '§': 'paragrahv', '°': 'kraad',
-                   '±': 'pluss miinus', '‰': 'promill', '×': 'korda', 'x': 'korda',
-                   '*': 'korda', '∙': 'korda', ':': 'jagada', '-': 'miinus'}
-
-# sümbolid, mis häälduvad vaid siis, kui asuvad kahe arvu vahel
-in_betweens = ('×', 'x', '*', ':', '-')
-
-# sümbolid ja lühendid, mis käänduvad vastavalt eelnevale arvule (nt 1 meeter vs 5 meetrit)
-quantifiables = ('$', '%', '‰', '€', '£', '°', 'a', 'atm', 'km', 'km²', 'm', 'm²', 'm³', 'mbar', 'cm',
-                 'ct', 'd', 'dB', 'eks', 'h', 'ha', 'hj', 'hl', 'mm', 'tk', 'p', 'rbl', 'rm', 'lk',
-                 'pk', 's', 'sl', 'spl', 'sek', 'tk', 'tl', 'kr', 'min', 't', 'mln', 'mld', 'mg',
-                 'g', 'kg', 'ml', 'l', 'cl', 'dl')
-
-# kaassõnad, mille korral eelnev või järgnev arvsõna läheb omastavasse käändesse
-pre_gens = ('üle', 'alla')
-post_gens = ('võrra', 'ümber', 'pealt', 'peale', 'ringis', 'paiku', 'aegu', 'eest')
-# sõnad, mille korral järgnev arvsõna läheb nimetavasse käändesse (kui oma kääne määramata)
-pre_noms = ('kell', 'number', 'aasta', 'kl', 'nr', 'a')
-
-abbrev_dict = defaultdict(None,
-                          {'a': 'aasta',
-                           'aa': 'arveldusaasta',
-                           'adm': 'admiral',
-                           'aj': 'ajutine',
-                           'ak': 'arvelduskonto',
-                           'akad': 'akadeemik',
-                           'al': 'alates',
-                           'apr': 'aprill',
-                           'atm': 'atmosfäär',
-                           'aug': 'august',
-                           'aü': 'ametiühing',
-                           'bulg': 'bulgaaria keeles',
-                           'ca': 'umbes',
-                           'cl': 'sentiliiter',
-                           'cm': 'sentimeeter',
-                           'ct': 'karaat',
-                           'dB': 'detsibell',
-                           'dal': 'dekaliiter',
-                           'dets': 'detsember',
-                           'dipl': 'diplom',
-                           'dir': 'direktor',
-                           'dl': 'detsiliiter',
-                           'dots': 'dotsent',
-                           'dr': 'doktor',
-                           'e': 'ehk',
-                           'e.m.a': 'enne meie ajaarvamist',
-                           'eKr': 'enne Kristuse sündi',
-                           'eks': 'eksemplar',
-                           'end': 'endine',
-                           'g': 'gramm',
-                           'h': 'tund',
-                           'ha': 'hektar',
-                           'hbr': 'heebrea keeles',
-                           'hisp': 'hispaania keeles',
-                           'hj': 'hobujõud',
-                           'hl': 'hektoliiter',
-                           'hn': 'hiina keeles',
-                           'hr': 'härra',
-                           'hrl': 'harilikult',
-                           'ik': 'isikukood',
-                           'ingl': 'inglise keeles',
-                           'ins': 'insener',
-                           'it': 'itaalia keeles',
-                           'j': 'jõgi',
-                           'j.a': 'juures asuv',
-                           'jaan': 'jaanuar',
-                           'jj': 'ja järgmine',
-                           'jm': 'ja muud',
-                           'jms': 'ja muud sellised',
-                           'jmt': 'ja mitmed teised',
-                           'jn': 'joonis',
-                           'jne': 'ja nii edasi',
-                           'jpn': 'jaapani keeles',
-                           'jpt': 'ja paljud teised',
-                           'jr': 'juunior',
-                           'jrk': 'järjekord',
-                           'jsk': 'jaoskond',
-                           'jt': 'ja teised',
-                           'juh': 'juhataja',
-                           'jun': 'juunior',
-                           'jv': 'järv',
-                           'k': 'keel',
-                           'k.a': 'kaasa arvatud',
-                           'kcal': 'kilokalor',
-                           'kd': 'köide',
-                           'kg': 'kilogramm',
-                           'khk': 'kihelkond',
-                           'kin': 'kindral',
-                           'kin-ltn': 'kindralleitnant',
-                           'kin-mjr': 'kindralmajor',
-                           'kk': 'keskkool',
-                           'kl': 'kell',
-                           'klh': 'kolhoos',
-                           'km': 'kilomeeter',
-                           'km/h': 'kilomeetrit tunnis',
-                           'km²': 'ruutkilomeeter',
-                           'knd': 'kandidaat',
-                           'kod': 'kodanik',
-                           'kol': 'kolonel',
-                           'kol-ltn': 'kolonelleitnant',
-                           'kop': 'kopikas',
-                           'kpl': 'kauplus',
-                           'kpt': 'kapten',
-                           'kpt-ltn': 'kaptenleitnant',
-                           'kpt-mjr': 'kaptenmajor',
-                           'kr': 'kroon',
-                           'krt': 'korter',
-                           'kt': 'kohusetäitja',
-                           'kub': 'kubermang',
-                           'kv': 'kvartal',
-                           'l': 'liiter',
-                           'ld': 'ladina keeles',
-                           'lg': 'lõige',
-                           'lj': 'linnajagu',
-                           'lk': 'lehekülg',
-                           'lm': 'liidumaa',
-                           'lo': 'linnaosa',
-                           'lp': 'lugupeetud',
-                           'lpn': 'lipnik',
-                           'ltn': 'leitnant',
-                           'lüh': 'lühend',
-                           'm': 'meeter',
-                           'm.a.j': 'meie ajaarvamise järgi',
-                           'm/s': 'meetrit sekundis',
-                           'mag': 'magister',
-                           'mbar': 'millibaar',
-                           'mg': 'milligramm',
-                           'mh': 'muu hulgas',
-                           'min': 'minut',
-                           'mjr': 'major',
-                           'mk': 'maakond',
-                           'ml': 'milliliiter',
-                           'mld': 'miljard',
-                           'mln': 'miljon',
-                           'mm': 'millimeeter',
-                           'mnt': 'maantee',
-                           'mob': 'mobiiltelefon',
-                           'ms': 'muuseas',
-                           'm²': 'ruutmeeter',
-                           'm³': 'kuupmeeter',
-                           'n': 'neiu',
-                           'n-srs': 'nooremseersant',
-                           'n-vbl': 'nooremveebel',
-                           'n-ö': 'nii-öelda',
-                           'nim': 'nimeline',
-                           'nn': 'niinimetatud',
-                           'nov': 'november',
-                           'nr': 'number',
-                           'nt': 'näiteks',
-                           'näd': 'nädal',
-                           'okt': 'oktoober',
-                           'osk': 'osakond',
-                           'p': 'punkt',
-                           'p.o': 'peab olema',
-                           'pKr': 'pärast Kristuse sündi',
-                           'pa': 'poolaasta',
-                           'pk': 'postkast',
-                           'pl': 'plats',
-                           'pms': 'peamiselt',
-                           'port': 'portugali keeles',
-                           'pr': 'proua',
-                           'prl': 'preili',
-                           'prof': 'professor',
-                           'ps': 'poolsaar',
-                           'pst': 'puiestee',
-                           'ptk': 'peatükk',
-                           'raj': 'rajoon',
-                           'rbl': 'rubla',
-                           'reg-nr': 'registreerimisnumber',
-                           'rg-kood': 'registrikood',
-                           'rk': 'raamatukogu',
-                           'rkl': 'riigikoguliige',
-                           'rm': 'ruumimeeter',
-                           'rms': 'reamees',
-                           'rmtk': 'raamatukogu',
-                           'rmtp': 'raamatupidamine',
-                           'rtj': 'raudteejaam',
-                           'rts': 'rootsi keeles',
-                           'rum': 'rumeenia keeles',
-                           's': 'sekund',
-                           's.a': 'sel aastal',
-                           's.o': 'see on',
-                           's.t': 'see tähendab',
-                           'saj': 'sajand',
-                           'sealh': 'sealhulgas',
-                           'seals': 'sealsamas',
-                           'sek': 'sekund',
-                           'sen': 'seenior',
-                           'sept': 'september',
-                           'sh': 'sealhulgas',
-                           'skp': 'selle kuu päeval',
-                           'sks': 'saksa keeles',
-                           'sl': 'supilusikatäis',
-                           'sm': 'seltsimees',
-                           'snd': 'sündinud',
-                           'spl': 'supilusikatäis',
-                           'srn': 'surnud',
-                           'srs': 'seersant',
-                           'st': 'see tähendab',
-                           'std': 'staadion',
-                           'stj': 'saatja',
-                           'surn': 'surnud',
-                           'sü': 'säilitusüksus',
-                           'sünd': 'sündinud',
-                           't': 'tund',
-                           'tehn': 'tehniline',
-                           'tel': 'telefon',
-                           'tk': 'tükk',
-                           'tl': 'teelusikatäis',
-                           'tlk': 'tõlkija',
-                           'tn': 'tänav',
-                           'tr': 'trükk',
-                           'ts': 'tsentner',
-                           'tv': 'televisioon',
-                           'u': 'umbes',
-                           'ukj': 'uue, Gregoriuse kalendri järgi',
-                           'ukr': 'ukraina keeles',
-                           'ung': 'ungari keeles',
-                           'v': 'vald',
-                           'v-ltn': 'vanemleitnant',
-                           'v-mdr': 'vanemmadrus',
-                           'v-vbl': 'vanemveebel',
-                           'v.a': 'välja arvatud',
-                           'van': 'vananenud',
-                           'vbl': 'veebel',
-                           'veebr': 'veebruar',
-                           'vkj': 'vana, Juliuse kalendri järgi',
-                           'vkr': 'vanakreeka keeles',
-                           'vm': 'või muud',
-                           'vms': 'või muud sellist',
-                           'vrd': 'võrdle',
-                           'vt': 'vaata',
-                           'õa': 'õppeaasta',
-                           'õp': 'õpetaja',
-                           'õpil': 'õpilane'})
-
-numbers = {'0': 'null',
-           '1': 'üks',
-           '2': 'kaks',
-           '3': 'kolm',
-           '4': 'neli',
-           '5': 'viis',
-           '6': 'kuus',
-           '7': 'seitse',
-           '8': 'kaheksa',
-           '9': 'üheksa',
-           2: 'tuhat',
-           3: 'miljon',
-           4: 'miljard',
-           5: 'triljon',
-           6: 'kvadriljon',
-           7: 'kvintiljon',
-           8: 'sekstiljon',
-           9: 'septiljon',
-           ',': 'koma',
-           }
-
-# vaikimisi väärtus puuduva võtme jaoks on tühisõne
-numbers = defaultdict(lambda: '', numbers)
-
-ordinal_numbers = {
-    'üks': 'esimene',
-    'kaks': 'teine',
-    'kolm': 'kolmas',
-    'neli': 'neljas',
-    'viis': 'viies',
-    'kuus': 'kuues',
-    'seitse': 'seitsmes',
-    'kaheksa': 'kaheksas',
-    'üheksa': 'üheksas',
-    'kümme': 'kümnes',
-    'kümmend': 'kümnes',
-    'teist': 'teistkümnes',
-    'sada': 'sajas',
-    'tuhat': 'tuhandes',
-    'miljon': 'miljones',
-    'miljard': 'miljardes',
-    'triljon': 'triljones',
-    'kvadriljon': 'kvadriljones',
-    'kvintiljon': 'kvintiljones',
-    'sekstiljon': 'sekstiljones',
-    'septiljon': 'septiljones',
-}
-
-ordinal_numbers = defaultdict(lambda: '', ordinal_numbers)
 
 vabamorf = Vabamorf()
 
@@ -319,7 +33,7 @@ def convert_a_block(number):
         return ''
     # üheliikmelise arvu puhul võtame lihtsalt sõnastikust algvormi
     elif len(number) == 1:
-        return numbers[number]
+        return cardinal_numbers[number]
     # kaheliikmelise arvu korral kehtivad vastavad erijuhud
     elif len(number) == 2:
         if number[-1] == '0':
@@ -328,21 +42,21 @@ def convert_a_block(number):
             elif number[0] == '0':
                 return ''
             else:
-                number_as_word = numbers[number[0]]
+                number_as_word = cardinal_numbers[number[0]]
                 return number_as_word + 'kümmend'
         elif number[0] == '1':
-            number_as_word = numbers[number[1]]
+            number_as_word = cardinal_numbers[number[1]]
             return number_as_word + 'teist'
         else:
-            first_number_as_word = numbers[number[0]]
-            second_number_as_word = numbers[number[1]]
+            first_number_as_word = cardinal_numbers[number[0]]
+            second_number_as_word = cardinal_numbers[number[1]]
             if number[0] == '0':
                 return second_number_as_word
             else:
                 return first_number_as_word + 'kümmend ' + second_number_as_word
     # kui arv koosneb kolmest elemendist (rohkemate elementidega ei peaks sellesse fn-i jõudma)
     else:
-        first_number_as_word = numbers[number[0]]
+        first_number_as_word = cardinal_numbers[number[0]]
         last_part = convert_a_block(number[1:])
         if number[0] == '0':
             return last_part
@@ -386,7 +100,7 @@ def convert_a_whole(number, is_sg_nom):
     if match:
         as_string = ''
         for elem in number:
-            as_string += numbers[elem] + ' '
+            as_string += cardinal_numbers[elem] + ' '
         return as_string
     # kui arv koosneb kuni kolmest numbrist
     if len(number) <= 3:
@@ -411,7 +125,7 @@ def convert_a_whole(number, is_sg_nom):
         # vaatame, mitu elementi on plokkide järjendis antud plokist tagapool (plokk ise kaasa arvatud),
         # ja leiame vastava väärtuse numbrite sõnastikust (nt tuhat, miljon, miljard jne)
         no_of_blocks_right = len(blocks[i:])
-        add_text = numbers[no_of_blocks_right]
+        add_text = cardinal_numbers[no_of_blocks_right]
         block_converted = convert_a_block(block)
         # kui plokk koosneb vaid nullidest, siis ei lisa lõppsõnele midagi
         if block != '000':
@@ -562,10 +276,10 @@ def inflect_a_quantifiable(prev_lemma, lemma, own_case, synthesizer, ordinal):
     # lemma: märgi/ühiku lemma, nt '%'
     # synthesizer: Vabamorfi instants
 
-    if lemma in voc_symbol_dict:
-        as_string = voc_symbol_dict[lemma]
+    if lemma in audible_symbols:
+        as_string = audible_symbols[lemma]
     else:
-        as_string = abbrev_dict[lemma]
+        as_string = abbreviations[lemma]
 
     if as_string:
         # kui oma kääne on määratud (ja mitte ainsuse nimetav), siis kääname selle järgi
@@ -651,15 +365,15 @@ def get_string(text, index, tag, synthesizer):
         if next_case in ('', '?'):
             if index > 0:
                 prev_lemma = text.words[index - 1].lemma[0]
-                if prev_lemma in pre_gens:
+                if prev_lemma in genitive_prepositions:
                     own_case = 'sg g'
                     next_case = 'sg g'
-                elif prev_lemma in pre_noms:
+                elif prev_lemma in nominative_preceeding_words:
                     own_case = 'sg n'
                     next_case = 'sg n'
-            if (index < len(text.words) - 1 and text.words[index + 1].lemma[0] in post_gens) \
-                    or (index > 1 and text.words[index - 2].lemma[0] in pre_gens) \
-                    or (index < len(text.words) - 2 and text.words[index + 2].lemma[0] in post_gens):
+            if (index < len(text.words) - 1 and text.words[index + 1].lemma[0] in genitive_postpositions) \
+                    or (index > 1 and text.words[index - 2].lemma[0] in genitive_prepositions) \
+                    or (index < len(text.words) - 2 and text.words[index + 2].lemma[0] in genitive_postpositions):
                 own_case = 'sg g'
                 next_case = 'sg g'
 
@@ -730,10 +444,10 @@ def get_string(text, index, tag, synthesizer):
 
     else:
         # leiame teisenduse sõnastikust
-        if lemma in voc_symbol_dict:
-            as_string = voc_symbol_dict[lemma]
+        if lemma in audible_symbols:
+            as_string = audible_symbols[lemma]
         else:
-            as_string = abbrev_dict[lemma]
+            as_string = abbreviations[lemma]
 
     # määrame tõeväärtuse ordinal (vajalik käänamise fn-i jaoks) vastavalt märgendile
     if tag == 'O':
@@ -765,7 +479,7 @@ def get_string(text, index, tag, synthesizer):
                     inflected = True
                 # järgmise sõna järgi kääname ainult siis, kui sõnalõpp ei ole kvantifitseeritav
                 # või kui on tegu omadussõnalise fraasiga
-                elif ending_lemma not in quantifiables or is_adj_phrase:
+                elif ending_lemma not in units or is_adj_phrase:
                     as_string = inflect(as_string, own_case, next_case, synthesizer, ordinal)
                     inflected = True
 
@@ -774,7 +488,7 @@ def get_string(text, index, tag, synthesizer):
                     ending = ending_lemma
                 # muul juhul tuleb sõnalõppu samuti käänata (kui sõna enda kääne määramata, siis
                 # vastavalt eelnevale arvule või kui tegu omadussõnalise fraasiga, siis vastavalt next_case'ile)
-                elif ending_lemma in quantifiables:
+                elif ending_lemma in units:
                     if is_adj_phrase:
                         ending = inflect_a_quantifiable(lemma, ending_lemma, next_case, synthesizer, ordinal)
                     else:
@@ -796,7 +510,7 @@ def get_string(text, index, tag, synthesizer):
             # käändumatute vormide puhul jääb algus algkujule
             if tag == 'K':
                 beginning = beginning_lemma
-            elif beginning_lemma in voc_symbol_dict:
+            elif beginning_lemma in audible_symbols:
                 if beginning_lemma == '-':
                     # erandjuhtudel, nt aadressides nagu Aia 1a-23, jääb -23 eraldi lemmaks. miinuse
                     # eksliku hääldamise vältimiseks kontrollime, mis sellele vahetult eelneb
@@ -804,7 +518,7 @@ def get_string(text, index, tag, synthesizer):
                     if beginning_loc == 0 or (beginning_loc > 0 and text.text[beginning_loc - 1] in (' ', '(', '"')):
                         beginning = 'miinus'
                 else:
-                    beginning = voc_symbol_dict[beginning_lemma]
+                    beginning = audible_symbols[beginning_lemma]
             else:
                 beginning = beginning_lemma
             # liidame alguse õige vormi põhiosale
@@ -813,7 +527,7 @@ def get_string(text, index, tag, synthesizer):
     elif (tag == 'M') and (own_case in ('', '?', 'sg n')):
         # kui tegu on kvantifitseeritava sümboliga/ühikuga, aga own_case määramata või ainsuse nimetav,
         # siis vaatame eelmist sõna (kui on), nt 1 dollar vs 11 dollarit
-        if lemma in quantifiables:
+        if lemma in units:
             if index > 0:
                 prev_postag = text.words[index - 1].partofspeech[0]
                 prev_lemma = text.words[index - 1].lemma[0]
@@ -863,7 +577,7 @@ def convert_sentence(sentence, synthesizer=vabamorf):
 
         # kontrollime, et lemmatiseerimisel ei oleks häälduvat sümbolit sõna algusest kaduma läinud
         # (nt +4 võib muutuda 4-ks)
-        if text_string[0] in voc_symbol_dict and text_lemma[0] not in voc_symbol_dict:
+        if text_string[0] in audible_symbols and text_lemma[0] not in audible_symbols:
             text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string[0] + text_lemma
 
         # võtame esimese sõnaliigimärgendi (nagu ka esimese lemma)
@@ -873,8 +587,8 @@ def convert_sentence(sentence, synthesizer=vabamorf):
             # lühendid lause või otsekõne alguses võivad saada esisuurtähega lemmad, viime väiketähtkujule
             if (i == 0 or (i > 0 and text.words[i - 1].text == '"')) and text_lemma.istitle():
                 text_lemma = text.morph_analysis[i].annotations[0].lemma = text_lemma.lower()
-            if text_lemma in voc_symbol_dict or text_lemma in abbrev_dict:
-                if text_lemma not in in_betweens:
+            if text_lemma in audible_symbols or text_lemma in abbreviations:
+                if text_lemma not in audible_connecting_symbols:
                     tag_indices['M'].append(i)
                     added = True
                 # sümbolid, mis saavad teisenduse vaid siis, kui asuvad kahe arvsõna vahel
