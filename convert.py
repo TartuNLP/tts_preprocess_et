@@ -11,18 +11,20 @@ from .assets import *
 vabamorf = Vabamorf()
 
 
-# fn-i koodi põhi saadud siit: https://www.w3resource.com/python-exercises/class-exercises/python-class-exercise-2.php
-
-def roman_to_int(s):
-    rom_dict = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
-    rom_val = defaultdict(lambda: 0, rom_dict)
-    int_val = 0
-    for i in range(len(s)):
-        if i > 0 and rom_val[s[i]] > rom_val[s[i - 1]]:
-            int_val += rom_val[s[i]] - 2 * rom_val[s[i - 1]]
+def roman_to_integer(roman):
+    """
+    Converts a string of Roman numerals to an integer
+    Taken from on https://www.w3resource.com/python-exercises/class-exercises/python-class-exercise-2.php
+    :param roman: str
+    :return: int
+    """
+    value = 0
+    for i in range(len(roman)):
+        if i > 0 and roman_numbers[roman[i]] > roman_numbers[roman[i - 1]]:
+            value += roman_numbers[roman[i]] - 2 * roman_numbers[roman[i - 1]]
         else:
-            int_val += rom_val[s[i]]
-    return int_val
+            value += roman_numbers[roman[i]]
+    return value
 
 
 # funktsioon, mis teisendab kuni kolmenumbrilise osa arvust sõnadeks
