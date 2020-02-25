@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 
-
 import re
 from estnltk import Text
 from estnltk.vabamorf.morf import Vabamorf
 from collections import OrderedDict
 from .assets import *
 
-
-vabamorf = Vabamorf()
+synthesizer = Vabamorf()
 
 
 def roman_to_integer(roman):
@@ -108,8 +106,6 @@ def convert_number(number, sg_nominative):
     return ' '.join(number_as_string)
 
 
-# funktsioon, mis teisendab normaliseeritud sõne kujul arvu viimase osa järgarvuks
-
 def make_ordinal(number_as_string):
     """
     Convert a number to ordinal
@@ -133,7 +129,7 @@ def make_ordinal(number_as_string):
     if special_suffix:
         final_part = final_part.partition(special_suffix)
         # declining the first part of the word
-        synthesized = vabamorf.synthesize(final_part[0], 'sg g')
+        synthesized = synthesizer.synthesize(final_part[0], 'sg g')
         if len(synthesized) > 0:
             ordinal_parts_as_strings.append(synthesized[0] + ordinal_numbers[special_suffix])
         else:
@@ -150,7 +146,7 @@ def make_ordinal(number_as_string):
         return parts_as_strings
 
 
-def inflect(original_as_string, own_case, next_case, synthesizer, ordinal):
+def inflect(original_as_string, own_case, next_case, ordinal):
     # original_as_string: sõne, mis koosneb algvormis sõnadest (lemmadest)
     # own_case: sõna enda käändevorm
     # next_case: lauses järgmise sobiva sõnaliigiga sõna käändevorm
@@ -216,7 +212,7 @@ def inflect(original_as_string, own_case, next_case, synthesizer, ordinal):
     return inflected_as_string
 
 
-def inflect_a_quantifiable(prev_lemma, lemma, own_case, synthesizer, ordinal):
+def inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal):
     # prev_lemma: märgile/ühikule eelnev lemma tekstis, nt 25% puhul on prev_lemma '25'
     # lemma: märgi/ühiku lemma, nt '%'
     # synthesizer: Vabamorfi instants
@@ -229,16 +225,16 @@ def inflect_a_quantifiable(prev_lemma, lemma, own_case, synthesizer, ordinal):
     if as_string:
         # kui oma kääne on määratud (ja mitte ainsuse nimetav), siis kääname selle järgi
         if own_case not in ('', '?', 'sg n'):
-            as_string = inflect(as_string, own_case, '', synthesizer, ordinal)
+            as_string = inflect(as_string, own_case, '', ordinal)
         # muul juhul kääname eelneva arvu järgi
         elif prev_lemma != 'üks' and prev_lemma != '1':
-            as_string = inflect(as_string, 'sg p', '', synthesizer, ordinal)
+            as_string = inflect(as_string, 'sg p', '', ordinal)
         return as_string
     else:
         return lemma
 
 
-def get_string(text, index, tag, synthesizer):
+def get_string(text, index, tag):
     # text: lausest tehtud Text-objekt
     # index: teisendatava sõne asukoht lauses
     # tag: sõnele määratud märgend
@@ -404,7 +400,7 @@ def get_string(text, index, tag, synthesizer):
         if len(ending_lemma) > 0:
             # kui omadussõnaline arvsõna, siis läheb põhiosa ainsuse omastavasse käändesse (nt 50-meetrine)
             if tag == 'A':
-                as_string = inflect(as_string, 'sg g', next_case, synthesizer, ordinal)
+                as_string = inflect(as_string, 'sg g', next_case, ordinal)
                 # lõpuosa võtame algkujul, mitte lemmatiseerituna, et säilitada õige kääne (nt 50-meetriseid)
                 ending = re.search(r'[^\d.:,]+$', text.words[index].text).group(0).strip('-')
             # muul juhul käändub põhiosa vastavalt määratud käänetele
@@ -416,14 +412,14 @@ def get_string(text, index, tag, synthesizer):
                     if len(own_case.split(' ')) > 1 and own_case.split(' ')[1] in special_cases:
                         # vastavalt kas ainsuse või mitmuse omastav
                         genitive = own_case.split(' ')[0] + ' g'
-                        as_string = inflect(as_string, genitive, next_case, synthesizer, ordinal)
+                        as_string = inflect(as_string, genitive, next_case, ordinal)
                     else:
-                        as_string = inflect(as_string, own_case, next_case, synthesizer, ordinal)
+                        as_string = inflect(as_string, own_case, next_case, ordinal)
                     inflected = True
                 # järgmise sõna järgi kääname ainult siis, kui sõnalõpp ei ole kvantifitseeritav
                 # või kui on tegu omadussõnalise fraasiga
                 elif ending_lemma not in units or is_adj_phrase:
-                    as_string = inflect(as_string, own_case, next_case, synthesizer, ordinal)
+                    as_string = inflect(as_string, own_case, next_case, ordinal)
                     inflected = True
 
                 # käändumatute vormide puhul jääb sõnalõpp algkujule
@@ -433,11 +429,11 @@ def get_string(text, index, tag, synthesizer):
                 # vastavalt eelnevale arvule või kui tegu omadussõnalise fraasiga, siis vastavalt next_case'ile)
                 elif ending_lemma in units:
                     if is_adj_phrase:
-                        ending = inflect_a_quantifiable(lemma, ending_lemma, next_case, synthesizer, ordinal)
+                        ending = inflect_a_quantifiable(lemma, ending_lemma, next_case, ordinal)
                     else:
-                        ending = inflect_a_quantifiable(lemma, ending_lemma, own_case, synthesizer, ordinal)
+                        ending = inflect_a_quantifiable(lemma, ending_lemma, own_case, ordinal)
                 else:
-                    ending = inflect(ending_lemma, own_case, next_case, synthesizer, ordinal)
+                    ending = inflect(ending_lemma, own_case, next_case, ordinal)
 
             # kui omadussõnaline ja põhiosa koosneb vaid ühest sõnast, siis kirjutame põhiosa ja lõpu kokku
             if tag == 'A' and (len(as_string.split(' ')) == 1 or ending == 'ne'):
@@ -449,7 +445,7 @@ def get_string(text, index, tag, synthesizer):
             beginning = ''
             # kääname põhiosa vaid siis, kui veel pole käänatud
             if not inflected:
-                as_string = inflect(as_string, own_case, next_case, synthesizer, ordinal)
+                as_string = inflect(as_string, own_case, next_case, ordinal)
             # käändumatute vormide puhul jääb algus algkujule
             if tag == 'K':
                 beginning = beginning_lemma
@@ -479,16 +475,16 @@ def get_string(text, index, tag, synthesizer):
                     # erandjuhul, kui kuulub omadussõnafraasi, siis läheb omastavasse (nt 15 cm pikkune)
                     if is_adj_phrase:
                         own_case = 'sg g'
-                    as_string = inflect_a_quantifiable(prev_lemma, lemma, own_case, synthesizer, ordinal)
+                    as_string = inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal)
         # kui ei ole kvantifitseeritav, siis oma käände puudumisel lühendit/sümbolit ei kääna
         else:
             return as_string
     else:
-        as_string = inflect(as_string, own_case, next_case, synthesizer, ordinal)
+        as_string = inflect(as_string, own_case, next_case, ordinal)
     return as_string
 
 
-def convert_sentence(sentence, synthesizer=vabamorf):
+def convert_sentence(sentence):
     # sentence: sõne kujul lause
     # synthesizer: Vabamorfi instants
 
@@ -606,7 +602,7 @@ def convert_sentence(sentence, synthesizer=vabamorf):
                 start_pos = text.words[index].start
                 end_pos = text.words[index].end
                 # viime sõne kujule
-                in_string_form = get_string(text, index, tag, synthesizer)
+                in_string_form = get_string(text, index, tag)
                 # asendame location_dict sõnastikus algse teksti teisendusega
                 location_dict[(start_pos, end_pos)] = in_string_form
 
