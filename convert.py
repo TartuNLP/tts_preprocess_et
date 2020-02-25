@@ -319,7 +319,7 @@ def get_string(text, index, tag, synthesizer):
             lemma = re.sub(re.escape(ending_lemma), '', lemma)
             ending_lemma = ending_lemma.strip('-')
         # teisendame araabia numbriks
-        as_arabic = roman_to_int(lemma)
+        as_arabic = roman_to_integer(lemma)
         if as_arabic != 0:
             lemma = str(as_arabic)
 
