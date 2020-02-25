@@ -27,121 +27,85 @@ def roman_to_integer(roman):
     return value
 
 
-# funktsioon, mis teisendab kuni kolmenumbrilise osa arvust sõnadeks
-def convert_a_block(number):
-    # number: sõne kujul arv lemmatiseeritult (nt '110')
+def convert_digit_block(number):
+    """
+    Converts a group of 3 digits to words
+    :param number: str
+        number (int) as a string ('110')
+    :return: list
+    """
 
-    if number == '':
-        return ''
-    # üheliikmelise arvu puhul võtame lihtsalt sõnastikust algvormi
-    elif len(number) == 1:
-        return cardinal_numbers[number]
-    # kaheliikmelise arvu korral kehtivad vastavad erijuhud
+    number = number.lstrip('0')
+    number_strings = []
+
+    if len(number) == 3:
+        number_strings.append(cardinal_numbers[number[0]] + 'sada')
+        number_strings += convert_digit_block(number[1:])
     elif len(number) == 2:
-        if number[-1] == '0':
-            if number[0] == '1':
-                return 'kümme'
-            elif number[0] == '0':
-                return ''
+        if number[0] == '1':
+            if number[1] == '0':
+                number_strings.append('kümme')
             else:
-                number_as_word = cardinal_numbers[number[0]]
-                return number_as_word + 'kümmend'
-        elif number[0] == '1':
-            number_as_word = cardinal_numbers[number[1]]
-            return number_as_word + 'teist'
+                number_strings.append(cardinal_numbers[number[1]] + 'teist')
         else:
-            first_number_as_word = cardinal_numbers[number[0]]
-            second_number_as_word = cardinal_numbers[number[1]]
-            if number[0] == '0':
-                return second_number_as_word
-            else:
-                return first_number_as_word + 'kümmend ' + second_number_as_word
-    # kui arv koosneb kolmest elemendist (rohkemate elementidega ei peaks sellesse fn-i jõudma)
-    else:
-        first_number_as_word = cardinal_numbers[number[0]]
-        last_part = convert_a_block(number[1:])
-        if number[0] == '0':
-            return last_part
-        else:
-            return first_number_as_word + 'sada ' + last_part
+            number_strings.append(cardinal_numbers[number[0]] + 'kümmend')
+            number_strings += convert_digit_block(number[1:])
+    elif len(number) == 1:
+        number_strings.append(cardinal_numbers[number[0]])
+
+    return number_strings
 
 
-# funktsioon, mis tükeldab arvu vajadusel osadeks ja seejärel teisendab osade kaupa
-def convert_a_whole(number, is_sg_nom):
-    # number: sõne kujul arv lemmatiseeritult (nt '110')
-    # is_sg_nom: True, kui tegu on põhiarvsõna ainsuse nimetava käändega (sel juhul läheb
-    # kohe nimetavale kujule, nt 'kaks miljonit ükssada' vs käänatav algvormis 'kaks miljon ükssada')
+def convert_number(number, sg_nominative):
+    """
+    Converts a number to words by splitting it to groups of three
+    :param number: str
+        number as a string
+    :param sg_nominative: bool
+    :return: str
+    """
+    number_as_string = []
 
-    # kui sisaldab punkti (nt kell 19.30), siis vaja eraldi teisendada osa enne punkti ja osa pärast punkti;
-    # sama süsteem, kui sisaldab koolonit (nt 6:2 võit; ka sellisel kujul kellaajad, nt 19:30)
-    index = None
-    if '.' in number:
-        index = number.index('.')
-    elif ':' in number:
-        index = number.index(':')
-    elif '-' in number:
-        index = number.index('-')
+    # processign all parts of a number separately (for dates, times, scores, etc.). Not pronuncing such delimiters with
+    # the exception of commas.
+    for element in re.split(r'[ .:-]+', re.sub(',', ' koma ', number)):
+        if re.match(r'\d+', element):
+            if re.match('^0+', element):  # numbers that start with 0 are converted as 'null null ...'
+                for character in element:
+                    number_as_string.append(cardinal_numbers[character])
+            else:  # grouping numbers into 3 digit blocks
+                blocks = []
+                index = len(element)
+                while index >= 3:
+                    block = element[index - 3:index]
+                    blocks.insert(0, block)
+                    index -= 3
+                if index > 0:
+                    last_block = element[:index]
+                    blocks.insert(0, last_block)
 
-    if index:
-        first_part = convert_a_whole(number[:index], is_sg_nom)
-        last_part = convert_a_whole(number[index + 1:], is_sg_nom)
-        return first_part + ' ' + last_part
-    # koma puhul sama lähenemine, ainult et sõna 'koma' tuleb ka ise välja hääldada
-    if ',' in number:
-        index = number.index(',')
-        first_part = convert_a_whole(number[:index], is_sg_nom)
-        last_part = convert_a_whole(number[index + 1:], is_sg_nom)
-        return first_part + ' koma ' + last_part
+                for i, block in enumerate(blocks):  # converting each block
+                    if block != '000':
+                        remaining_blocks = len(blocks[i:])
+                        group_text = cardinal_numbers[remaining_blocks]
+                        block_converted = convert_digit_block(block)
+                        number_as_string += block_converted
 
-    # eemaldame üleliigsed punktid (juhtudel, kui arvu sees on mitu punkti järjest, nt 19...20)
-    if number.startswith('.'):
-        number = number.lstrip('.')
-    # kontrollime, kas arv algab nulliga - kui jah, siis teisendus kujul 'null null ...',
-    # vajalik nt kellaaegade puhul (00.30) või komakohtadega arvude puhul (3,04)
-    match = re.match('^0+', number)
-    if match:
-        as_string = ''
-        for elem in number:
-            as_string += cardinal_numbers[elem] + ' '
-        return as_string
-    # kui arv koosneb kuni kolmest numbrist
-    if len(number) <= 3:
-        return convert_a_block(number)
-    # kui arv koosneb enam kui kolmest numbrist
-    else:
-        # loome kuni kolmeliikmelised plokid, kus samuti arv sõne kujul,
-        # nt '110000' -> ['110', '000']
-        blocks = []
-        index = len(number)
-        while index >= 3:
-            block = number[index - 3:index]
-            blocks.insert(0, block)
-            index -= 3
-        if index > 0:
-            last_block = number[:index]
-            blocks.insert(0, last_block)
-    # vaatame järjest plokid läbi, teisendame ükshaaval
-    # ja lisame vajalikud sõnad nagu 'miljon', 'tuhat' jms
-    number_as_string = ''
-    for i, block in enumerate(blocks):
-        # vaatame, mitu elementi on plokkide järjendis antud plokist tagapool (plokk ise kaasa arvatud),
-        # ja leiame vastava väärtuse numbrite sõnastikust (nt tuhat, miljon, miljard jne)
-        no_of_blocks_right = len(blocks[i:])
-        add_text = cardinal_numbers[no_of_blocks_right]
-        block_converted = convert_a_block(block)
-        # kui plokk koosneb vaid nullidest, siis ei lisa lõppsõnele midagi
-        if block != '000':
-            # add_text võib olla ka tühisõne, sest viimase ploki puhul ei ole sõnastikus vastet
-            if add_text != '':
-                if is_sg_nom:
-                    # üks miljon vs kaks/kolm/jne miljonit eristus
-                    if no_of_blocks_right >= 3 and block_converted.strip() != 'üks':
-                        add_text += 'it'
-                number_as_string += block_converted + ' ' + add_text + ' '
-            else:
-                number_as_string += block_converted + ' '
+                        # if nominative and plural 'miljon' and larger change to partitive
+                        if sg_nominative and remaining_blocks >= 3 and block_converted != ['üks']:
+                            group_text += 'it'
+                        if remaining_blocks > 1:
+                            number_as_string.append(group_text)
+        elif element:
+            number_as_string.append(element)
 
-    return number_as_string
+    # remove 'üks' and 'ükssada' from the beginning unless the number is 1 or 1,...
+    if number_as_string[0] == 'üks' and len(number_as_string) > 1 and number_as_string[1] != 'koma':
+        number_as_string = number_as_string[1:]
+    elif number_as_string[0] == 'ükssada':
+        number_as_string[0] = 'sada'
+
+    return ' '.join(number_as_string)
 
 
 # funktsioon, mis võtab sõne kujule teisendatud arvu ja normaliseerib selle
@@ -440,7 +404,7 @@ def get_string(text, index, tag, synthesizer):
         if tag != 'O' and (own_case == 'sg n' or next_case == 'sg n'):
             is_sg_nom = True
         # teisendame arvu sõnalisele kujule
-        as_string = convert_a_whole(lemma, is_sg_nom)
+        as_string = convert_number(lemma, is_sg_nom)
         # normaliseerime
         as_string = normalize_string(lemma, as_string)
 
