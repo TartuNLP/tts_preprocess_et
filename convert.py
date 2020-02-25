@@ -110,19 +110,19 @@ def convert_number(number, sg_nominative):
 
 # funktsioon, mis teisendab normaliseeritud sõne kujul arvu viimase osa järgarvuks
 
-def make_ordinal(number_as_string, synthesizer):
-    # number_as_string: sõnalisele kujule viidud arv, nt 'sada üks'
-    # synthesizer: Vabamorfi instants
+def make_ordinal(number_as_string):
+    """
+    Convert a number to ordinal
+    :param number_as_string: str
+    :return: list
+    """
 
-    parts_as_strings = number_as_string.split(' ')
-    ordinal_parts_as_strings = []
-    # kõik osad peale viimase jätame algvormi
-    if len(parts_as_strings) > 1:
-        for part in parts_as_strings[:-1]:
-            ordinal_parts_as_strings.append(part)
-    # viimase osa muudame järgarvuks
+    parts_as_strings = number_as_string.split()
+    ordinal_parts_as_strings = parts_as_strings[:-1]  # copy all but the last word
+
+    # convert last word to ordinal
     final_part = parts_as_strings[-1]
-    # kui viimase osa lõpp on 'teist', 'kümmend' või 'sada'
+    # if the last word ends with 'teist', 'kümmend' või 'sada'
     special_suffix = None
     if final_part.endswith('teist'):
         special_suffix = 'teist'
@@ -131,13 +131,13 @@ def make_ordinal(number_as_string, synthesizer):
     elif final_part.endswith('sada') and final_part != 'sada':
         special_suffix = 'sada'
     if special_suffix:
-        partition_tuple = final_part.partition(special_suffix)
-        # kääname lõpueelset osa, nt 'üksteist' -> 'üheteistkümnes'
-        synthesized = synthesizer.synthesize(partition_tuple[0], 'sg g')
+        final_part = final_part.partition(special_suffix)
+        # declining the first part of the word
+        synthesized = vabamorf.synthesize(final_part[0], 'sg g')
         if len(synthesized) > 0:
-            part_in_gen = synthesized[0]
-            ordinal_parts_as_strings.append(part_in_gen + ordinal_numbers[special_suffix])
+            ordinal_parts_as_strings.append(synthesized[0] + ordinal_numbers[special_suffix])
         else:
+            print(number_as_string)
             ordinal_parts_as_strings = []
     # muul juhul asendame viimase osa lihtsalt vastega sõnastikust ordinal_numbers
     else:
@@ -159,7 +159,7 @@ def inflect(original_as_string, own_case, next_case, synthesizer, ordinal):
 
     # kui järgarv, siis esmalt viime selle viimase osa järgarvu kujule
     if ordinal:
-        parts_as_strings = make_ordinal(original_as_string, synthesizer)
+        parts_as_strings = make_ordinal(original_as_string)
     else:
         # tükeldame number_as_string tühikute järgi osadeks
         parts_as_strings = original_as_string.strip().split(' ')
