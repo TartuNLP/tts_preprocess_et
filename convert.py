@@ -354,7 +354,8 @@ def get_string(text, index, tag):
         own_case = 'sg n'
 
     # kui arvu sisaldav lemma sisaldab ka muud peale numbrite-punktide (nt 20aastane),
-    # siis tuleb lemma puhastada      
+    # siis tuleb lemma puhastada
+    as_string = lemma
     if tag in ('N', 'O', 'A', 'K'):
         # otsime sõna lõpust
         match = re.search(r'[^\d.:,]+$', lemma)
@@ -392,8 +393,6 @@ def get_string(text, index, tag):
                 as_string = audible_symbols[lemma]
             elif lemma in abbreviations:
                 as_string = abbreviations[lemma]
-        else:
-            as_string = lemma
 
     # määrame tõeväärtuse ordinal (vajalik käänamise fn-i jaoks) vastavalt märgendile
     if tag == 'O':
@@ -526,12 +525,15 @@ def normalize_phrase(phrase):
     else:
         return phrase
 
+
 def post_process(sentence):
     """
     Postprocessing to normalize the sentence and convert any URLs.
     :param sentence:
     :return: str
     """
+    # TODO there should be a separate URL/email processing fuction where otherwise silent characters (hyphens) are
+    #  also read. Fortunately EstNLTK does not split URLs
 
     sentence = re.sub(r'www\.', r' VVV punkt ', sentence)
     sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
@@ -559,9 +561,11 @@ def convert_sentence(sentence):
     # manual substitutions:
     # ... between numbers to kuni
     sentence = re.sub(r'(\d)\.\.\.(\d)', r'\g<1> kuni \g<2>', sentence)
-    # add a hyphen between any consecutive numebrs and letters
+    # add a hyphen between any number-letter sequences  # TODO should not be done in URLs
     sentence = re.sub(r'(\d)([A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
     sentence = re.sub(r'([A-ZÄÖÜÕŽŠa-zäöüõšž])(\d)', r'\g<1>-\g<2>', sentence)
+    # remove grouping between numbers
+    sentence = re.sub(r'([0-9]) ([0-9])', r'\g<1>\g<2>', sentence)
 
     # Morphological analysis with estNLTK
     text = Text(sentence).analyse('morphology')
@@ -572,6 +576,7 @@ def convert_sentence(sentence):
     # 'M' - other (audible symbols, abbreviations, units);
     # 'A' - adjective forms vormid (eg. words with -ne/-line prefix, 10-aastane);
     # 'K' - indeclinable forms (addresses, classes where the prefix is not an abbreviation);
+    # TODO something for URLs
     # the value is a list of such word indexes
 
     tag_indices = defaultdict(lambda: [])
@@ -645,13 +650,16 @@ def convert_sentence(sentence):
             if text_lemma == 'C' and i > 0:
                 if text.words[i - 1].text != '°':
                     tag_indices['O'].append(i)
+                    continue
             else:
                 tag_indices['O'].append(i)
+                continue
         # juhtumid nagu nt VIIa või Xb klass võivad saada kas 'Y' või 'H' märgendi;
         # lõppu lubame vaid ühe väiketähe, et vältida pärisnimede nagu
         # Mai või Ivi Rooma numbriteks arvamist
         elif postag in ('Y', 'H') and re.match('^[IVXLCDM]+[a-z]?$', text_lemma):
             tag_indices['O'].append(i)
+            continue
 
         # capitalized abbreviations
         elif postag == 'Y':
@@ -659,6 +667,11 @@ def convert_sentence(sentence):
             if normalized_lemma != text_lemma:
                 text.morph_analysis[i].annotations[0].lemma = normalized_lemma
                 tag_indices['Y'].append(i)
+                continue
+
+        # undetected numbers with ne/line suffix
+        if re.match(r'^\d+-?[a-zA_ZäöüõÄÖÕÜšžŠŽ]+(ne|line)$', text_lemma):
+            tag_indices['A'].append(i)
 
     # kui lauses leidub midagi, mida teisendada
     if len(tag_indices) > 0:

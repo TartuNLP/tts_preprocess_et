@@ -48,7 +48,7 @@ The script follows the rules of Estonian orthography. Internationally used forms
     - [ ] Numbers at the end of a sentence (followed by a dot) could be either cardinal or ordinal. Currently converted to cardinal numbers.
 - [ ] Converting special cases of numbers, such as national ID numbers, phone numbers, etc.
 - [x] Ranges that use three dots. Example: `1...5 → `<del>`üks viis`</del>` üks kuni viis`
-- [ ] Numbers grouped by spaces followed by a *-ne*/*-line* adjective. Example: `20 300-eurone tšekk → `<del>`kahekümne kolmesaja eurone tšekk`</del>` kahekümne tuhande kolmesaja eurone tšekk`
+- [x] Numbers grouped by spaces followed by a *-ne*/*-line* adjective. Example: `20 300-eurone tšekk → `<del>`kahekümne kolmesaja eurone tšekk`</del>` kahekümne tuhande kolmesaja eurone tšekk`
 - [x] Simple addresses. Example: `2-10 → kaks kümme; 5b → viis b`
 - [x] Addresses with an apartment number and a specifying letter. Example: `5a-1 → viis a üks`
 - [x] Converting letters in classes and addresses. Example: `Ib → esimene `<del>`b`</del>` bee; 1b → üks `<del>`b
@@ -56,4 +56,5 @@ The script follows the rules of Estonian orthography. Internationally used forms
 - [ ] Censored words should not be interpreted as abbreviations. Example: `p***e → `<del>`punkt***ehk`</del>
 - [ ] Detecting abbreviated *-ne*/*-line* adjectives. Example: `5 km vahemaa → `<del>`viis kilomeetrit`</del>` viie kilomeetrine vahemaa`
 - [x] Numbers larger than 10^27
+- [ ] Detection of which consonant combinations can be pronounced and which need to be spelled out letter by letter (`ERM` vs `ERR`). Useful for abbreviations and URLs.
 - [ ] Handling unmapped use cases: post-processing to make sure that all information that remains in the output is readable for speech synthesis and potentially creating a more robust mode where everything is always converted but disregarding the correct form.
