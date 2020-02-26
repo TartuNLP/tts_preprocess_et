@@ -301,6 +301,8 @@ def get_string(text, index, tag):
                         else:
                             next_case = current_case
                         break
+                    elif word.text in '.)";\']':  # stop if the next word marks the end of the phrase somehow
+                        break
 
         # järgmisena vaatame, kas ees või järel on käänet määrav sõna (vaatame kuni kaks sõna edasi/tagasi,
         # sest nt 'Hind tõusis 5 € peale', 'Üle 2 km on juba läbitud')
@@ -491,7 +493,7 @@ def get_string(text, index, tag):
 def normalize_phrase(phrase):
     """
     Converts any letters to their pronunciations if needed. For example TartuNLP to Tartu-enn-ell-pee.
-    Converts continuous uppercase letters, uppercase letters after a lowercase letter, any single letters.
+    Applied to continuous uppercase letters, uppercase letters after a lowercase letter, any single letters.
     :param phrase: str
     :return: str
     """
@@ -523,6 +525,28 @@ def normalize_phrase(phrase):
     else:
         return phrase
 
+def post_process(sentence):
+    """
+    Postprocessing to normalize the sentence and convert any URLs.
+    :param sentence:
+    :return: str
+    """
+
+    sentence = re.sub(r'www\.', r' VVV punkt ', sentence)
+    sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
+    sentence = re.sub(r'http://', r' HTTP koolon kaldkriips kaldkriips ', sentence)
+    sentence = re.sub(r'@', r' ätt ', sentence)
+    sentence = re.sub(r'\?([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' küsimärk \g<1>', sentence)
+    sentence = re.sub(r'/([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' kaldkriips \g<1>', sentence)
+    sentence = re.sub(r'&', r' ampersand ', sentence)
+    sentence = re.sub(r'#', r' trellid ', sentence)
+    sentence = re.sub(r'\.([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt \g<1>', sentence)
+
+    sentence = re.sub(r' +', r' ', sentence)
+
+    sentence = normalize_phrase(sentence)
+    return sentence
+
 
 def convert_sentence(sentence):
     """
@@ -536,7 +560,7 @@ def convert_sentence(sentence):
     sentence = re.sub(r'(\d)\.\.\.(\d)', r'\g<1> kuni \g<2>', sentence)
     # add a hyphen between any consecutive numebrs and letters
     sentence = re.sub(r'(\d)([A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
-    sentence = re.sub(r'([A-ZÄÖÜÕŽŠa-zäöüõšž](\d))', r'\g<1>-\g<2>', sentence)
+    sentence = re.sub(r'([A-ZÄÖÜÕŽŠa-zäöüõšž])(\d)', r'\g<1>-\g<2>', sentence)
 
     # Morphological analysis with estNLTK
     text = Text(sentence).analyse('morphology')
@@ -706,6 +730,6 @@ def convert_sentence(sentence):
                 # lause lõpust punkt kaduda
                 if text.text.endswith('.') and not new_sentence.endswith('.'):
                     new_sentence += '.'
-        return normalize_phrase(new_sentence)
+        return post_process(new_sentence)
     else:
-        return normalize_phrase(sentence)
+        return post_process(sentence)

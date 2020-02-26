@@ -37,7 +37,7 @@ The script follows the rules of Estonian orthography. Internationally used forms
 - [x] Scores. Example: `11:15 → üksteist viisteist`
 - [x] Numbers that contain more than one dot. Example: `1.25.16,2 → `<del>`kaksteist tuhat viissada kuusteist koma kaks`</del>`üks kakskümmend viis kuusteist koma kaks`
 - [x] Converting capitalized abbreviations. Example: `ATV → aa-tee-vee; MP3 → emm-pee-kolm` 
-- [ ] Converting URLs. Example: `www.eesti.ee → vee-vee-vee punkt eesti punkt ee-ee`
+- [x] Converting URLs. Example: `www.eesti.ee → vee-vee-vee punkt eesti punkt ee-ee`
 - [ ] Converting terminative Roman numerals. Example: `I. → esiteks`
 - [ ] Handling conversions with multiple possible outcomes (producing all options or somehow picking the best one). Currently we have tried to opt for the interpretation that can be used in as many situations as possible. Example: `10.05 → `<del>`kümnes mai, kümme läbi viis minutit,`</del>` kümme null viis`
     - [ ] Abbreviations that have multiple uses. Currently each abbreviation is limited to one interpretation. Example: `v.a → [välja arvatud, väga austatud]`
