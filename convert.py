@@ -576,6 +576,7 @@ def convert_sentence(sentence):
     # 'M' - other (audible symbols, abbreviations, units);
     # 'A' - adjective forms vormid (eg. words with -ne/-line prefix, 10-aastane);
     # 'K' - indeclinable forms (addresses, classes where the prefix is not an abbreviation);
+    # 'U' - urls and email addresses
     # TODO something for URLs
     # the value is a list of such word indexes
 
@@ -591,7 +592,20 @@ def convert_sentence(sentence):
 
         # restore any dots inside lemmas (they dissappear when there is more than two usually)
         if text_lemma.count('.') < text_string.count('.'):
-            text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string
+            restored_lemma = ""
+            j = 0
+            for letter in text_string:
+                if j < len(text_lemma) and letter == text_lemma[j]:
+                    restored_lemma += letter
+                    j += 1
+                elif letter == '.':
+                    restored_lemma += '.'
+                else:
+                    if j < len(text_lemma):
+                        restored_lemma += text_lemma[j:]
+                    break
+
+            text_lemma = text.morph_analysis[i].annotations[0].lemma = restored_lemma
 
         # restore any audible symbols in lemmas (for example '+4' may become '4')
         if text_string[0] in audible_symbols and text_lemma[0] not in audible_symbols:
