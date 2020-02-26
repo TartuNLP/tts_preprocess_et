@@ -36,7 +36,7 @@ The script follows the rules of Estonian orthography. Internationally used forms
 - [x] Times. Example: `12.30 → kaksteist kolmkümmend`
 - [x] Scores. Example: `11:15 → üksteist viisteist`
 - [x] Numbers that contain more than one dot. Example: `1.25.16,2 → `<del>`kaksteist tuhat viissada kuusteist koma kaks`</del>`üks kakskümmend viis kuusteist koma kaks`
-- [ ] Converting capitalized abbreviations. Example: `ATV → aa-tee-vee; MP3 → emm-pee-kolm` 
+- [x] Converting capitalized abbreviations. Example: `ATV → aa-tee-vee; MP3 → emm-pee-kolm` 
 - [ ] Converting URLs. Example: `www.eesti.ee → vee-vee-vee punkt eesti punkt ee-ee`
 - [ ] Converting terminative Roman numerals. Example: `I. → esiteks`
 - [ ] Handling conversions with multiple possible outcomes (producing all options or somehow picking the best one). Currently we have tried to opt for the interpretation that can be used in as many situations as possible. Example: `10.05 → `<del>`kümnes mai, kümme läbi viis minutit,`</del>` kümme null viis`
@@ -50,8 +50,8 @@ The script follows the rules of Estonian orthography. Internationally used forms
 - [x] Ranges that use three dots. Example: `1...5 → `<del>`üks viis`</del>` üks kuni viis`
 - [ ] Numbers grouped by spaces followed by a *-ne*/*-line* adjective. Example: `20 300-eurone tšekk → `<del>`kahekümne kolmesaja eurone tšekk`</del>` kahekümne tuhande kolmesaja eurone tšekk`
 - [x] Simple addresses. Example: `2-10 → kaks kümme; 5b → viis b`
-- [ ] Addresses with an apartment number and a specifying letter. Example: `5a-1 → viis a üks`
-- [ ] Converting letters in classes and addresses. Example: `Ib → esimene `<del>`b`</del>` bee; 1b → üks `<del>`b
+- [x] Addresses with an apartment number and a specifying letter. Example: `5a-1 → viis a üks`
+- [x] Converting letters in classes and addresses. Example: `Ib → esimene `<del>`b`</del>` bee; 1b → üks `<del>`b
 `</del>` bee`
 - [ ] Censored words should not be interpreted as abbreviations. Example: `p***e → `<del>`punkt***ehk`</del>
 - [ ] Detecting abbreviated *-ne*/*-line* adjectives. Example: `5 km vahemaa → `<del>`viis kilomeetrit`</del>` viie kilomeetrine vahemaa`

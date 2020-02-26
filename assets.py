@@ -284,3 +284,38 @@ ordinal_numbers = defaultdict(lambda: '', {
 })
 
 roman_numbers = defaultdict(lambda: 0, {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000})
+
+alphabet = {
+    'A': 'aa',
+    'B': 'bee',
+    'C': 'tsee',
+    'D': 'dee',
+    'E': 'ee',
+    'F': 'eff',
+    'G': 'gee',
+    'H': 'haa',
+    'I': 'ii',
+    'J': 'jott',
+    'K': 'kaa',
+    'L': 'ell',
+    'M': 'emm',
+    'N': 'enn',
+    'O': 'oo',
+    'P': 'pee',
+    'Q': 'kuu',
+    'R': 'err',
+    'S': 'ess',
+    'Š': 'šaa',
+    'Z': 'zett',
+    'Ž': 'žee',
+    'T': 'tee',
+    'U': 'uu',
+    'V': 'vee',
+    'W': 'kaksisvee',
+    'Õ': 'õõ',
+    'Ä': 'ää',
+    'Ö': 'öö',
+    'Ü': 'üü',
+    'X': 'iks',
+    'Y': 'igrek'
+}

@@ -221,19 +221,18 @@ def inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal):
 
     if lemma in audible_symbols:
         as_string = audible_symbols[lemma]
-    else:
+    elif lemma in abbreviations:
         as_string = abbreviations[lemma]
-
-    if as_string:
-        # kui oma kääne on määratud (ja mitte ainsuse nimetav), siis kääname selle järgi
-        if own_case not in ('', '?', 'sg n'):
-            as_string = inflect(as_string, own_case, '', ordinal)
-        # muul juhul kääname eelneva arvu järgi
-        elif prev_lemma != 'üks' and prev_lemma != '1':
-            as_string = inflect(as_string, 'sg p', '', ordinal)
-        return as_string
     else:
-        return lemma
+        as_string = lemma
+
+    # kui oma kääne on määratud (ja mitte ainsuse nimetav), siis kääname selle järgi
+    if own_case not in ('', '?', 'sg n'):
+        as_string = inflect(as_string, own_case, '', ordinal)
+    # muul juhul kääname eelneva arvu järgi
+    elif prev_lemma != 'üks' and prev_lemma != '1':
+        as_string = inflect(as_string, 'sg p', '', ordinal)
+    return as_string
 
 
 def get_string(text, index, tag):
@@ -385,10 +384,13 @@ def get_string(text, index, tag):
 
     else:
         # leiame teisenduse sõnastikust
-        if lemma in audible_symbols:
-            as_string = audible_symbols[lemma]
+        if tag == 'M':
+            if lemma in audible_symbols:
+                as_string = audible_symbols[lemma]
+            elif lemma in abbreviations:
+                as_string = abbreviations[lemma]
         else:
-            as_string = abbreviations[lemma]
+            as_string = lemma
 
     # määrame tõeväärtuse ordinal (vajalik käänamise fn-i jaoks) vastavalt märgendile
     if tag == 'O':
@@ -486,56 +488,94 @@ def get_string(text, index, tag):
     return as_string
 
 
+def normalize_phrase(phrase):
+    """
+    Converts any letters to their pronunciations if needed. For example TartuNLP to Tartu-enn-ell-pee.
+    Converts continuous uppercase letters, uppercase letters after a lowercase letter, any single letters.
+    :param phrase: str
+    :return: str
+    """
+    if re.search('[A-ZÄÖÜÕŽŠ]{2}|'
+                 '[a-zäöüõšž][A-ZÄÖÜÕŽŠ]|'
+                 '(^|[^A-ZÄÖÜÕŽŠa-zäöüõšž])[A-ZÄÖÜÕŽŠa-zäöüõšž]([^A-ZÄÖÜÕŽŠa-zäöüõšž]|$)', phrase):
+        pronunciation = ""
+        for i, letter in enumerate(phrase):
+            if i - 1 < 0 or re.match('[^A-ZÄÖÜÕŽŠa-zäöüõšž]', phrase[i - 1]):
+                previous = " "
+            else:
+                previous = phrase[i - 1]
+            if i + 1 == len(phrase) or re.match('[^A-ZÄÖÜÕŽŠa-zäöüõšž]', phrase[i + 1]):
+                upcoming = " "
+            else:
+                upcoming = phrase[i + 1]
+
+            # any uppercase letters that are not just first letters of a lowercase word (separated by space or hyphen)
+            # and any single lowercase letters
+            if (letter.isupper() and not (previous == " " and upcoming.islower())) or (letter.islower() and previous ==
+                                                                                       upcoming == " "):
+                if re.search('[A-ZÄÖÜÕŽŠa-zäöüõšž]$', pronunciation):
+                    pronunciation += "-"
+                pronunciation += alphabet[letter.upper()]
+            else:
+                pronunciation += letter
+
+        return pronunciation
+    else:
+        return phrase
+
+
 def convert_sentence(sentence):
-    # sentence: sõne kujul lause
-    # synthesizer: Vabamorfi instants
+    """
+        Converts a sentence to input supported by Estonian text-to-speech application.
+        :param sentence: str
+        :return: str
+        """
 
     # manual substitutions:
+    # ... between numbers to kuni
     sentence = re.sub(r'(\d)\.\.\.(\d)', r'\g<1> kuni \g<2>', sentence)
+    # add a hyphen between any consecutive numebrs and letters
+    sentence = re.sub(r'(\d)([A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
+    sentence = re.sub(r'([A-ZÄÖÜÕŽŠa-zäöüõšž](\d))', r'\g<1>-\g<2>', sentence)
 
-    # teostame lausel morf. analüüsi
+    # Morphological analysis with estNLTK
     text = Text(sentence).analyse('morphology')
 
-    # loome märgendite sõnastiku, kus võtmeteks saavad
-    # 'N' - põhiarvsõnad;
-    # 'O' - järgarvsõnad;
-    # 'M' - muud (ehk häälduvad sümbolid, lühendid, ühikud);
-    # 'A' - omadussõnalised vormid (ehk nt ne-liitelised nagu 10-aastane),
-    # 'K' - käändumatud vormid nagu aadressid ja klassid, kus liide ei ole lühend;
-    # ja väärtusteks järjend sõnade indeksitest, mille kohta märgend käib
+    # Dict of converable words where keys are:
+    # 'N' - cardinal numbers;
+    # 'O' - ordinal numbers;
+    # 'M' - other (audible symbols, abbreviations, units);
+    # 'A' - adjective forms vormid (eg. words with -ne/-line prefix, 10-aastane);
+    # 'K' - indeclinable forms (addresses, classes where the prefix is not an abbreviation);
+    # the value is a list of such word indexes
 
     tag_indices = defaultdict(lambda: [])
     num_postags = ('N', 'O')
     misc_postags = ('Z', 'Y', 'J', 'A')
-    # vaatame järjest läbi igale sõnale antud märgendid
+
     for i, postag_list in enumerate(text.morph_analysis.partofspeech):
-        added = False
         text_string = text.words[i].text
         text_lemma = text.words[i].lemma[0]
+        postag = postag_list[0]
         last_index = len(text.words) - 1
 
-        # kontrollime, ega lemmatiseerimisel pole sõnesiseseid punkte kaduma läinud
-        # (nt 2.3.2018 võib muutuda '232018'-ks)
+        # restore any dots inside lemmas (they dissappear when there is more than two usually)
         if text_lemma.count('.') < text_string.count('.'):
             text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string
 
-        # kontrollime, et lemmatiseerimisel ei oleks häälduvat sümbolit sõna algusest kaduma läinud
-        # (nt +4 võib muutuda 4-ks)
+        # restore any audible symbols in lemmas (for example '+4' may become '4')
         if text_string[0] in audible_symbols and text_lemma[0] not in audible_symbols:
             text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string[0] + text_lemma
 
-        # võtame esimese sõnaliigimärgendi (nagu ka esimese lemma)
-        postag = postag_list[0]
-        # sõnastikku paneme indeksi ainult siis, kui vastab meie kriteeriumidele
         if postag in misc_postags:
-            # lühendid lause või otsekõne alguses võivad saada esisuurtähega lemmad, viime väiketähtkujule
+            # lowercase capitalized first words in sentence/quote, otherwise abbreviation detection may fail
             if (i == 0 or (i > 0 and text.words[i - 1].text == '"')) and text_lemma.istitle():
                 text_lemma = text.morph_analysis[i].annotations[0].lemma = text_lemma.lower()
             if text_lemma in audible_symbols or text_lemma in abbreviations:
                 if text_lemma not in audible_connecting_symbols:
                     tag_indices['M'].append(i)
-                    added = True
-                # sümbolid, mis saavad teisenduse vaid siis, kui asuvad kahe arvsõna vahel
+                    continue
+                # symbols that are converted only between two numbers
                 elif 0 < i < last_index:
                     # erandjuhtumid on koolon ja miinusmärk, mida käsitleme tehtemärkidena vaid siis, kui
                     # on kahe arvu vahel ja on ka eraldatud tühikutega (vastasel juhul kaetud nt 6:2 võit)
@@ -550,15 +590,15 @@ def convert_sentence(sentence):
                     if is_applicable and (text.words[i - 1].partofspeech[0] in ('N', 'O')) \
                             and (text.words[i + 1].partofspeech[0] in ('N', 'O')):
                         tag_indices['M'].append(i)
-                        added = True
+                        continue
             # ne-liitelised arvu sisaldavad sõnad asetame omadussõnaliste alla
             elif postag in ('Y', 'A') and re.match(r'^\d+-?\w*ne$', text_lemma):
                 tag_indices['A'].append(i)
-                added = True
+                continue
             # aadresside, klasside jms käsitlemine, kus sõnaliigiks Y, nt Pärna 14a või 5b
             elif postag == 'Y' and re.search(r'\d+-?\w?$', text_lemma):
                 tag_indices['K'].append(i)
-                added = True
+                continue
 
         elif postag in num_postags:
             if re.search(r'\d+', text_string):
@@ -568,25 +608,32 @@ def convert_sentence(sentence):
                         or (postag == 'O' and i == last_index):
                     postag = 'N'
                 tag_indices[postag].append(i)
-                added = True
+                continue
 
         # Rooma numbrite käsitlemine (sõnaliigiks saab automaatselt 'O' või käänatuna 'Y'
         # või käändumatu lõpuga 'H')
-        if not added:
-            # vaatame lemmat ehk selle tingimuslause alla mahuvad ka õigesti käänatud ja
-            # käändelõppudega juhtumid, nt VI-le, IIIks
-            if postag in ('O', 'Y') and re.match('^[IVXLCDM]+$', text_lemma):
-                # erandjuhtum on 'C', mida ei tohi teisendada 'sajandaks', kui eelneb kraadimärk (Celsius)
-                if text_lemma == 'C' and i > 0:
-                    if text.words[i - 1].text != '°':
-                        tag_indices['O'].append(i)
-                else:
+
+        # vaatame lemmat ehk selle tingimuslause alla mahuvad ka õigesti käänatud ja
+        # käändelõppudega juhtumid, nt VI-le, IIIks
+        if postag in ('O', 'Y') and re.match('^[IVXLCDM]+$', text_lemma):
+            # erandjuhtum on 'C', mida ei tohi teisendada 'sajandaks', kui eelneb kraadimärk (Celsius)
+            if text_lemma == 'C' and i > 0:
+                if text.words[i - 1].text != '°':
                     tag_indices['O'].append(i)
-            # juhtumid nagu nt VIIa või Xb klass võivad saada kas 'Y' või 'H' märgendi;
-            # lõppu lubame vaid ühe väiketähe, et vältida pärisnimede nagu
-            # Mai või Ivi Rooma numbriteks arvamist
-            elif postag in ('Y', 'H') and re.match('^[IVXLCDM]+[a-h]?$', text_lemma):
+            else:
                 tag_indices['O'].append(i)
+        # juhtumid nagu nt VIIa või Xb klass võivad saada kas 'Y' või 'H' märgendi;
+        # lõppu lubame vaid ühe väiketähe, et vältida pärisnimede nagu
+        # Mai või Ivi Rooma numbriteks arvamist
+        elif postag in ('Y', 'H') and re.match('^[IVXLCDM]+[a-z]?$', text_lemma):
+            tag_indices['O'].append(i)
+
+        # capitalized abbreviations
+        elif postag == 'Y':
+            normalized_lemma = normalize_phrase(text_lemma)
+            if normalized_lemma != text_lemma:
+                text.morph_analysis[i].annotations[0].lemma = normalized_lemma
+                tag_indices['Y'].append(i)
 
     # kui lauses leidub midagi, mida teisendada
     if len(tag_indices) > 0:
@@ -605,6 +652,7 @@ def convert_sentence(sentence):
                 end_pos = text.words[index].end
                 # viime sõne kujule
                 in_string_form = get_string(text, index, tag)
+
                 # asendame location_dict sõnastikus algse teksti teisendusega
                 location_dict[(start_pos, end_pos)] = in_string_form
 
@@ -658,6 +706,6 @@ def convert_sentence(sentence):
                 # lause lõpust punkt kaduda
                 if text.text.endswith('.') and not new_sentence.endswith('.'):
                     new_sentence += '.'
-        return new_sentence
+        return normalize_phrase(new_sentence)
     else:
-        return sentence
+        return normalize_phrase(sentence)
