@@ -68,7 +68,8 @@ def convert_number(number, sg_nominative):
     # the exception of commas.
     for element in re.split(r'[ .:-]+', re.sub(',', ' koma ', number)):
         if re.match(r'\d+', element):
-            if re.match('^0+', element):  # numbers that start with 0 are converted as 'null null ...'
+            if re.match('^0+', element) or len(element) > 27:  # numbers that start with 0 and numbers larger than 10^27
+                # are converted as 'null null ... '
                 for character in element:
                     number_as_string.append(cardinal_numbers[character])
             else:  # grouping numbers into 3 digit blocks

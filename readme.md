@@ -55,5 +55,5 @@ The script follows the rules of Estonian orthography. Internationally used forms
 `</del>` bee`
 - [ ] Censored words should not be interpreted as abbreviations. Example: `p***e → `<del>`punkt***ehk`</del>
 - [ ] Detecting abbreviated *-ne*/*-line* adjectives. Example: `5 km vahemaa → `<del>`viis kilomeetrit`</del>` viie kilomeetrine vahemaa`
-- [ ] Numbers larger than 10^27
+- [x] Numbers larger than 10^27
 - [ ] Handling unmapped use cases: post-processing to make sure that all information that remains in the output is readable for speech synthesis and potentially creating a more robust mode where everything is always converted but disregarding the correct form.
