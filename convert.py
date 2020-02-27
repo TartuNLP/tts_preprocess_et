@@ -498,7 +498,7 @@ def normalize_phrase(phrase):
     :return: str
     """
     if re.search('[A-ZÄÖÜÕŽŠ]{2}|'
-                 '[a-zäöüõšž][A-ZÄÖÜÕŽŠ]|'
+                 '[a-zäöüõšž][A-ZÄÖÜÕŽŠ]([^a-zäöüõšž]|$)|'
                  '(^|[^A-ZÄÖÜÕŽŠa-zäöüõšž])[A-ZÄÖÜÕŽŠa-zäöüõšž]([^A-ZÄÖÜÕŽŠa-zäöüõšž]|$)', phrase):
         pronunciation = ""
         for i, letter in enumerate(phrase):
@@ -532,10 +532,12 @@ def post_process(sentence):
     :param sentence:
     :return: str
     """
-    # TODO there should be a separate URL/email processing fuction where otherwise silent characters (hyphens) are
+    # TODO there should be a separate URL/email processing fuction where otherwise silent characters (hyphens,
+    #  underscores) are
     #  also read. Fortunately EstNLTK does not split URLs
 
     sentence = re.sub(r'www\.', r' VVV punkt ', sentence)
+    sentence = re.sub(r'\.ee([^A-ZÄÖÜÕŽŠa-zäöüõšž]|$)', r' punkt EE', sentence)
     sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'http://', r' HTTP koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'@', r' ätt ', sentence)

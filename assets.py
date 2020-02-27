@@ -285,7 +285,7 @@ ordinal_numbers = defaultdict(lambda: '', {
 
 roman_numbers = defaultdict(lambda: 0, {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000})
 
-alphabet = {
+alphabet = defaultdict(lambda: '', {
     'A': 'aa',
     'B': 'bee',
     'C': 'tsee',
@@ -318,4 +318,4 @@ alphabet = {
     'Ü': 'üü',
     'X': 'iks',
     'Y': 'igrek'
-}
+})
