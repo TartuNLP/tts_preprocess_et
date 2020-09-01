@@ -537,7 +537,7 @@ def post_process(sentence):
     #  also read. Fortunately EstNLTK does not split URLs
 
     sentence = re.sub(r'www\.', r' VVV punkt ', sentence)
-    sentence = re.sub(r'\.ee([^A-ZÄÖÜÕŽŠa-zäöüõšž]|$)', r' punkt EE', sentence)
+    sentence = re.sub(r'\.ee(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt EE', sentence)
     sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'http://', r' HTTP koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'@', r' ätt ', sentence)
