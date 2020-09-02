@@ -557,6 +557,8 @@ def post_process(sentence):
     sentence = re.sub(r'&', r' ampersand ', sentence)
     sentence = re.sub(r'#', r' trellid ', sentence)
     sentence = re.sub(r'\.([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt \g<1>', sentence)
+    sentence = re.sub(r'\(', r' sulgudes ', sentence)
+    sentence = re.sub(r'\) ', r', ', sentence) # pausi tekitamiseks
 
     sentence = re.sub(r' +', r' ', sentence)
 
