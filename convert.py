@@ -489,6 +489,12 @@ def get_string(text, index, tag):
         as_string = inflect(as_string, own_case, next_case, ordinal)
     return as_string
 
+def acronyms_lowercase(acro):
+    seq = acro.group()
+    if seq in pronounceable_acronyms:
+        return seq.capitalize()
+    else:
+        return seq
 
 def normalize_phrase(phrase):
     """
@@ -500,6 +506,11 @@ def normalize_phrase(phrase):
     if re.search('[A-ZÄÖÜÕŽŠ]{2}|'
                  '[a-zäöüõšž][A-ZÄÖÜÕŽŠ]([^a-zäöüõšž]|$)|'
                  '(^|[^A-ZÄÖÜÕŽŠa-zäöüõšž])[A-ZÄÖÜÕŽŠa-zäöüõšž]([^A-ZÄÖÜÕŽŠa-zäöüõšž]|$)', phrase):
+        """
+        Convert pronounceable uppercase sequences (3+ chars) to lowercase to avoid spelling
+        """
+        phrase = re.sub(r'(?<![A-ZÄÖÜÕŽŠ])([A-ZÄÖÜÕŽŠ]{3,})(?![A-ZÄÖÜÕŽŠ])', acronyms_lowercase, phrase)
+
         pronunciation = ""
         for i, letter in enumerate(phrase):
             if i - 1 < 0 or re.match('[^A-ZÄÖÜÕŽŠa-zäöüõšž]', phrase[i - 1]):
