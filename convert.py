@@ -675,6 +675,12 @@ def convert_sentence(sentence):
         # vaatame lemmat ehk selle tingimuslause alla mahuvad ka õigesti käänatud ja
         # käändelõppudega juhtumid, nt VI-le, IIIks
         if postag in ('O', 'Y') and re.match('^[IVXLCDM]+$', text_lemma):
+            # üldiselt on parem midagi asendamata jätta kui valesti öelda (Ca->sajas aasta, MM-l->kahe tuhandendal)
+            # tegelikult vaja palju pisikesi erireegleid nagu: eelneb isikunimi, järgneb 'kvartal', on AC/DC jne
+            # siia minimaalne välistus, aga kahtlasi kohti on veel (IV e intravenoosne tilguti jpm)
+            if re.match('^(C|CD|DC|L|M|MI|MM|XL|XXL|XXX)$', text_lemma):
+                continue
+
             # erandjuhtum on 'C', mida ei tohi teisendada 'sajandaks', kui eelneb kraadimärk (Celsius)
             if text_lemma == 'C' and i > 0:
                 if text.words[i - 1].text != '°':
@@ -686,7 +692,8 @@ def convert_sentence(sentence):
         # juhtumid nagu nt VIIa või Xb klass võivad saada kas 'Y' või 'H' märgendi;
         # lõppu lubame vaid ühe väiketähe, et vältida pärisnimede nagu
         # Mai või Ivi Rooma numbriteks arvamist
-        elif postag in ('Y', 'H') and re.match('^[IVXLCDM]+[a-z]?$', text_lemma):
+        # edit: selle malliga sobivad ainult väikesed numbrid
+        elif postag in ('Y', 'H') and re.match('^[IVX]+[a-z]?$', text_lemma):
             tag_indices['O'].append(i)
             continue
 
