@@ -238,6 +238,15 @@ abbreviations = defaultdict(None, {'a': 'aasta',
                                    'õp': 'õpetaja',
                                    'õpil': 'õpilane'})
 
+pronounceable_acronyms = ('ABBA', 'AIDS', 'ALDE', 'API', 'ARK', 'ATKO', 
+                          'BAFTA', 'BENU', 'CERN', 'CRISPR', 'DARPA', 
+                          'EFTA', 'EKA', 'EKI', 'EKRE', 'EKSA', 'EMO', 'EMOR', 'ERM', 'ERSO', 'ESTO', 'ETA', 'EÜE', 
+                          'FIDE', 'FIFA', 'FISA',
+                          'GAZ', 'GITIS', 'IBAN', 'ISIS', 'ISO', 'JOKK', 'NASA', 'NATO', 
+                          'PERH', 'PID', 'PIN', 'PRIA', 'RAF', 'RET', 
+                          'SALT', 'SARS', 'SETI', 'SIG', 'SIM', 'SMIT', 'SORVVO', 'TASS', 
+                          'UNESCO', 'VAZ', 'VEB', 'WADA')
+
 cardinal_numbers = defaultdict(lambda: '', {'0': 'null',
                                             '1': 'üks',
                                             '2': 'kaks',
