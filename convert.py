@@ -702,7 +702,9 @@ def convert_sentence(sentence):
             normalized_lemma = normalize_phrase(text_lemma)
             if normalized_lemma != text_lemma:
                 text.morph_analysis[i].annotations[0].lemma = normalized_lemma
-                tag_indices['Y'].append(i)
+                # lisaks peame käände kohta valetama, muidu Y ühildub järgnevaga
+                # text.morph_analysis[i].annotations[0].form = 'sg n'
+                # tag_indices['Y'].append(i)
                 continue
 
         # undetected numbers with ne/line suffix
