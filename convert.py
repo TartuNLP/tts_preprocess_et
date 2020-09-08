@@ -527,6 +527,16 @@ def spell_if_needed(match):
                 pronunciation += "-"
         return pronunciation
 
+def read_nums_if_needed(match):
+    seq = match.group()
+    pronunciation = ""
+    if len(seq) > 5:
+        for i, letter in enumerate(seq):
+            pronunciation += convert_number(letter, True)
+    else:
+        pronunciation = convert_number(seq, True)
+    return pronunciation
+
 def normalize_phrase(phrase):
     """
     Converts any letters to their pronunciations if needed. For example TartuNLP to Tartu-enn-ell-pee.
@@ -594,7 +604,13 @@ def post_process(sentence):
     sentence = re.sub(r' +', r' ', sentence)
 
     sentence = normalize_phrase(sentence)
-    sentence = re.sub(r'[A-ZÄÖÜÕŽŠa-zäöüõšž]{1,}', spell_if_needed, sentence)
+    """
+    Convert unpronounceable letter sequences to spelled form
+    Convert all remaining numeric sequences to words in sg. nom
+    """
+    sentence = re.sub(r'[A-ZÄÖÜÕŽŠa-zäöüõšž]{3,}', spell_if_needed, sentence)
+    sentence = re.sub(r'\d+', read_nums_if_needed, sentence)
+
     return sentence
 
 
