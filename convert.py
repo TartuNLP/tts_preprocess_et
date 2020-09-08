@@ -496,6 +496,25 @@ def acronyms_lowercase(acro):
     else:
         return seq
 
+def spell_if_needed(match):
+    """
+    Most simplistic approach - any letter sequence that does not contain a vowel is unpronouncable
+    All single letters and consonant sequences are spelled out (converted to their pronunciations)
+    For example php -> pee-haa-pee
+    :param re.match
+    :return: str
+    """
+    seq = match.group()
+    if re.search('[AEIOUÕÄÖÜaeiouõäöü]', seq) and (len(seq) > 1):
+        return seq
+    else:
+        pronunciation = ""
+        for i, letter in enumerate(seq):
+            pronunciation += alphabet[letter.upper()]
+            if (i < len(seq)-1):
+                pronunciation += "-"
+        return pronunciation
+
 def normalize_phrase(phrase):
     """
     Converts any letters to their pronunciations if needed. For example TartuNLP to Tartu-enn-ell-pee.
@@ -563,6 +582,7 @@ def post_process(sentence):
     sentence = re.sub(r' +', r' ', sentence)
 
     sentence = normalize_phrase(sentence)
+    sentence = re.sub(r'[A-ZÄÖÜÕŽŠa-zäöüõšž]{1,}', spell_if_needed, sentence)
     return sentence
 
 
@@ -580,7 +600,8 @@ def convert_sentence(sentence):
     sentence = re.sub(r'(\d)([A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
     sentence = re.sub(r'([A-ZÄÖÜÕŽŠa-zäöüõšž])(\d)', r'\g<1>-\g<2>', sentence)
     # remove grouping between numbers
-    sentence = re.sub(r'([0-9]) ([0-9])', r'\g<1>\g<2>', sentence)
+    # keeping space in 2006-10-27 12:48:50, in general require group of 3
+    sentence = re.sub(r'([0-9]) ([0-9]{3})(?!\d)', r'\g<1>\g<2>', sentence)
 
     # Morphological analysis with estNLTK
     text = Text(sentence).analyse('morphology')
