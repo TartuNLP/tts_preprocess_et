@@ -11,17 +11,26 @@ synthesizer = Vabamorf()
 
 def roman_to_integer(roman):
     """
-    Converts a string of Roman numerals to an integer
-    Taken from on https://www.w3resource.com/python-exercises/class-exercises/python-class-exercise-2.php
+    1001. implementation of "Convert a string of Roman numerals to an integer"
+    Returns 0 if the syntax is not correct (VX, CCD, IIII, MVM etc)
     :param roman: str
     :return: int
     """
     value = 0
-    for i in range(len(roman)):
-        if i > 0 and roman_numbers[roman[i]] > roman_numbers[roman[i - 1]]:
-            value += roman_numbers[roman[i]] - 2 * roman_numbers[roman[i - 1]]
+    if re.search('(I|X|C){4}', roman): return 0
+    if re.search('(V|L|D){2}', roman): return 0
+    roman = roman.replace("IV", "IIII").replace("IX", "VIIII")
+    roman = roman.replace("XL", "XXXX").replace("XC", "LXXXX")
+    roman = roman.replace("CD", "CCCC").replace("CM", "DCCCC")
+    if re.search('(I|X|C){5}', roman): return 0
+    maxorder = 1000
+    for c in roman:
+        i = roman_numbers[c]
+        if i > maxorder:
+            return 0
         else:
-            value += roman_numbers[roman[i]]
+            maxorder = i
+            value += i
     return value
 
 
@@ -263,6 +272,9 @@ def get_string(text, index, tag):
         as_arabic = roman_to_integer(lemma)
         if as_arabic != 0:
             lemma = str(as_arabic)
+        else:
+            ordinal = False
+            tag = 'M'
 
     # vaatame sõna analüüsi - kas kääne on tuvastatud?
     own_case = text.words[index].form[0]
@@ -723,9 +735,8 @@ def convert_sentence(sentence):
             normalized_lemma = normalize_phrase(text_lemma)
             if normalized_lemma != text_lemma:
                 text.morph_analysis[i].annotations[0].lemma = normalized_lemma
-                # lisaks peame käände kohta valetama, muidu Y ühildub järgnevaga
-                # text.morph_analysis[i].annotations[0].form = 'sg n'
-                # tag_indices['Y'].append(i)
+                # lisaks peame käändega ettevaatlik olema, et käändelõputa Y ei ühilduks järgnevaga
+                if text.morph_analysis[i].annotations[0].form != '?': tag_indices['Y'].append(i)
                 continue
 
         # undetected numbers with ne/line suffix
