@@ -170,7 +170,7 @@ pronounceable_acronyms = ('ABBA', 'AIDS', 'ALDE', 'API', 'ARK', 'ATKO',
                           'GAZ', 'GITIS', 'IBAN', 'ISIS', 'ISO', 'JOKK', 'NASA', 'NATO', 
                           'PERH', 'PID', 'PIN', 'PRIA', 'RAF', 'RET', 
                           'SALT', 'SARS', 'SETI', 'SIG', 'SIM', 'SMIT', 'SORVVO', 'TASS', 
-                          'UNESCO', 'VAZ', 'VEB', 'WADA')
+                          'UNESCO', 'VAZ', 'VEB', 'WADA', 'WiFi')
 
 cardinal_numbers = defaultdict(lambda: '', {'0': 'null',
                                             '1': 'üks',
