@@ -592,23 +592,25 @@ def post_process(sentence):
     sentence = re.sub(r'\.ee(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt EE', sentence)
     sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'http://', r' HTTP koolon kaldkriips kaldkriips ', sentence)
-    sentence = re.sub(r'@', r' ätt ', sentence)
     sentence = re.sub(r'\?([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' küsimärk \g<1>', sentence)
     sentence = re.sub(r'/([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' kaldkriips \g<1>', sentence)
-    sentence = re.sub(r'&', r' ampersand ', sentence)
-    sentence = re.sub(r'#', r' trellid ', sentence)
     sentence = re.sub(r'\.([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt \g<1>', sentence)
-    sentence = re.sub(r'\(', r' sulgudes ', sentence)
     sentence = re.sub(r'\) ', r', ', sentence) # pausi tekitamiseks
-
     sentence = re.sub(r' +', r' ', sentence)
+
+    # replace annoying long repetitions with ' repeating symbol X ',
+    # then any remaining symbols (in URLs etc) that look like audible
+    for key in last_resort:
+        korduv = re.escape(key) + '{4,}'
+        sentence = re.sub(r'{}'.format(korduv), r" korduv märk{}".format(last_resort[key]), sentence)
+    sentence = sentence.translate( str.maketrans(last_resort) )
 
     sentence = normalize_phrase(sentence)
     """
     Convert unpronounceable letter sequences to spelled form
     Convert all remaining numeric sequences to words in sg. nom
     """
-    sentence = re.sub(r'[A-ZÄÖÜÕŽŠa-zäöüõšž]{3,}', spell_if_needed, sentence)
+    sentence = re.sub(r'[A-ZÄÖÜÕŽŠa-zäöüõšž]{2,}', spell_if_needed, sentence)
     sentence = re.sub(r'\d+', read_nums_if_needed, sentence)
 
     return sentence
