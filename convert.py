@@ -676,9 +676,14 @@ def convert_sentence(sentence):
             text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string[0] + text_lemma
 
         if postag in misc_postags:
+            # restore lemmas in abbreviation list to uppercase (lemma for 'PS' is lowercase 'ps', lemma for 'LP-l' however is 'LP')
+            # comparing text_string with text_lemma should suffice
+            if text_string in abbreviations and text_string.lower() == text_lemma:
+                text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string
             # lowercase capitalized first words in sentence/quote, otherwise abbreviation detection may fail
-            if (i == 0 or (i > 0 and text.words[i - 1].text == '"')) and text_lemma.istitle():
+            elif (i == 0 or (i > 0 and text.words[i - 1].text == '"')) and text_lemma.istitle():
                 text_lemma = text.morph_analysis[i].annotations[0].lemma = text_lemma.lower()
+                
             if text_lemma in audible_symbols or text_lemma in abbreviations:
                 if text_lemma not in audible_connecting_symbols:
                     tag_indices['M'].append(i)
