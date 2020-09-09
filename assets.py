@@ -10,6 +10,20 @@ audible_symbols = {'@': 'ät', '$': 'dollar', '%': 'protsent', '&': 'ja', '+': '
 # sümbolid, mis häälduvad vaid siis, kui asuvad kahe arvu vahel
 audible_connecting_symbols = ('×', 'x', '*', ':', '-')
 
+# any symbols still left unreplaced (neutral character namings which may be different from audible_symbols)
+# used on the final text right before output as str.maketrans dictionary, thus the spaces
+last_resort = {
+    '@': ' ätt ',
+    '=': ' võrdub ',
+    '/': ' kaldkriips ',
+    '(': ' sulgudes ',
+    '#': ' trellid ',
+    '*': ' tärn ',
+    '&': ' ampersand ',
+    '%': ' protsent ',
+    '_': ' allkriips ',
+}
+
 # sümbolid ja lühendid, mis käänduvad vastavalt eelnevale arvule (nt 1 meeter vs 5 meetrit)
 units = ('$', '%', '‰', '€', '£', '°', 'a', 'atm', 'km', 'km²', 'm', 'm²', 'm³', 'mbar', 'cm',
          'ct', 'd', 'dB', 'eks', 'h', 'ha', 'hj', 'hl', 'mm', 'tk', 'p', 'rbl', 'rm', 'lk',
