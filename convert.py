@@ -532,7 +532,7 @@ def read_nums_if_needed(match):
     pronunciation = ""
     if len(seq) > 5:
         for i, letter in enumerate(seq):
-            pronunciation += convert_number(letter, True)
+            pronunciation += convert_number(letter, True) + ' '
     else:
         pronunciation = convert_number(seq, True)
     return pronunciation
