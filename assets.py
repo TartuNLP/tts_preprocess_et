@@ -178,7 +178,7 @@ abbreviations = defaultdict(None,
 })
 
 pronounceable_acronyms = ('ABBA', 'AIDS', 'ALDE', 'API', 'ARK', 'ATKO', 
-                          'BAFTA', 'BENU', 'CERN', 'CRISPR', 'DARPA', 
+                          'BAFTA', 'BENU', 'CERN', 'CRISPR', 'COVID', 'DARPA', 
                           'EFTA', 'EKA', 'EKI', 'EKRE', 'EKSA', 'EMO', 'EMOR', 'ERM', 'ERSO', 'ESTO', 'ETA', 'EÜE', 
                           'FIDE', 'FIFA', 'FISA',
                           'GAZ', 'GITIS', 'IBAN', 'ISIS', 'ISO', 'JOKK', 'NASA', 'NATO', 
