@@ -266,7 +266,7 @@ def get_string(text, index, tag):
         if match:
             ending_lemma = match.group(0)
             # escape on vajalik selleks, et vältida segadusi regex metamärkidega nagu nt +
-            lemma = re.sub(re.escape(ending_lemma)+'$', '', lemma)
+            lemma = lemma[:-len(ending_lemma)]
             ending_lemma = ending_lemma.strip('-')
         # teisendame araabia numbriks
         as_arabic = roman_to_integer(lemma)
@@ -374,7 +374,7 @@ def get_string(text, index, tag):
         if match:
             ending_lemma = match.group(0)
             # puhastame lemma, mis läheb teisendamisele
-            lemma = re.sub(re.escape(ending_lemma)+'$', '', lemma)
+            lemma = lemma[:-len(ending_lemma)]
             # selleks, et sõnalõppu ennast hiljem vajadusel käänata, eemaldame eest side-/mõttekriipsu (kui on)
             if len(ending_lemma) > 1:
                 ending_lemma = ending_lemma.strip('-')
@@ -385,7 +385,7 @@ def get_string(text, index, tag):
         match = re.search(r'^[^\d.:,]+', lemma)
         if match:
             beginning_lemma = match.group(0)
-            lemma = re.sub('^'+re.escape(beginning_lemma), '', lemma)
+            lemma = lemma[len(beginning_lemma):]
             # eemaldame side-/mõttekriipsu vaid juhul, kui lemma on pikem kui üks,
             # vastasel juhul võib kaduma minna nt miinusmärgina mõeldud kriips arvu ees
             if len(beginning_lemma) > 1:
