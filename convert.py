@@ -291,7 +291,7 @@ def get_string(text, index, tag):
         # mis ei anna vajalikku teavet)
         if index < len(text.words) - 2:
             # loetelu tuvastamiseks vaatame algteksti alates käesoleva sõna algusest
-            if re.match(r'(\d+\.?,?\s)+(ja|või|ning|ega)\s\d', text.text[text.words[index].start:]):
+            if re.match(r'(\d+\.?,?\s)+(ja|või|ja/või|ning|ega|kui)\s\d', text.text[text.words[index].start:]):
                 is_list = True
             # vahemiku tuvastamiseks vaatame järgmise sõna kuju ja ülejärgmise sõnaliiki
             if re.match(r'^(\.?([–\-]))|kuni$', text.words[index + 1].text) \
