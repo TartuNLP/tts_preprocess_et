@@ -734,7 +734,7 @@ def convert_sentence(sentence):
             # üldiselt on parem midagi asendamata jätta kui valesti öelda (Ca->sajas aasta, MM-l->kahe tuhandendal)
             # tegelikult vaja palju pisikesi erireegleid nagu: eelneb isikunimi, järgneb 'kvartal', on AC/DC jne
             # siia minimaalne välistus, aga kahtlasi kohti on veel (IV e intravenoosne tilguti jpm)
-            if re.match('^(C|CD|DC|L|M|MI|MM|XL|XXL|XXX)$', text_lemma):
+            if re.match('^(C|DI|ID|CD|DC|L|M|MI|MM|XL|XXL|XXX)$', text_lemma):
                 continue
 
             # erandjuhtum on 'C', mida ei tohi teisendada 'sajandaks', kui eelneb kraadimärk (Celsius)
