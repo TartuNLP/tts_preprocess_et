@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import re
+import unicodedata
 from estnltk import Text
 from estnltk.vabamorf.morf import Vabamorf
 from collections import OrderedDict
@@ -578,6 +579,29 @@ def normalize_phrase(phrase):
         return phrase
 
 
+def strip_combining(s):
+    return u''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+
+def simplify_unicode(sentence):
+    """
+    Most accented Latin characters are pronounced just the same as the base character.
+    Shrink as many extended Unicode repertoire into the Estonian alphabet as possible.
+    It is GOOD for machine learning to have smaller ortographic repertoire.
+    It is a BAD idea if we start using any proper name dictionaries for morph analysis
+      or pronunciations later on. You are warned.
+    :param sentence:
+    :return: str
+    """
+    sentence = sentence.replace("Ð", "D").replace("Þ", "Th")
+    sentence = sentence.replace("ð", "d").replace("þ", "th")
+    sentence = re.sub(r'S(c|C)(h|H)', r'Š', sentence)
+    sentence = re.sub(r'sch', r'š', sentence)
+    sentence = re.sub(r'[ĆČ]', r'Tš', sentence)
+    sentence = re.sub(r'[ćč]', r'tš', sentence)
+
+    sentence = re.sub(r'[^A-ZÄÖÜÕŽŠa-zäöüõšž ,]+', lambda m: r'{}'.format( strip_combining(m.group(0)) ), sentence)
+    return sentence
+
 def post_process(sentence):
     """
     Postprocessing to normalize the sentence and convert any URLs.
@@ -605,6 +629,9 @@ def post_process(sentence):
         sentence = re.sub(r'{}'.format(korduv), r" korduv märk{}".format(last_resort[key]), sentence)
     sentence = sentence.translate( str.maketrans(last_resort) )
 
+    # very long uppercase sequences are probably words
+    sentence = re.sub(r'[A-ZÄÖÜÕŽŠ,\-]{5,}', lambda m: r'{}'.format(m.group(0).lower()), sentence)
+
     sentence = normalize_phrase(sentence)
     """
     Convert unpronounceable letter sequences to spelled form
@@ -626,6 +653,10 @@ def convert_sentence(sentence):
     # manual substitutions:
     # ... between numbers to kuni
     sentence = re.sub(r'(\d)\.\.\.(\d)', r'\g<1> kuni \g<2>', sentence)
+
+    # reduce Unicode repertoire _before_ inserting any hyphens
+    sentence = simplify_unicode (sentence)
+
     # add a hyphen between any number-letter sequences  # TODO should not be done in URLs
     sentence = re.sub(r'(\d)([A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
     sentence = re.sub(r'([A-ZÄÖÜÕŽŠa-zäöüõšž])(\d)', r'\g<1>-\g<2>', sentence)
@@ -716,7 +747,19 @@ def convert_sentence(sentence):
                 continue
 
         elif postag in num_postags:
-            if re.search(r'\d+', text_string):
+             # 9a is N/sgn, 10a is O/sgg
+            if re.search(r'\d+\-?[a]$', text_string):
+                # jäta nagu on
+                text.morph_analysis[i].annotations[0].lemma = text_string
+                continue
+
+            # 13/10/2011 on miljard kolmsada kümmend üks miljonit kümmend kaks tuhat üksteist
+            if re.search(r'^\d+\/\d+\/\d+$', text_string):
+                # jäta nagu on
+                text.morph_analysis[i].annotations[0].lemma = text_string
+                continue
+
+           if re.search(r'\d+', text_string):
                 # muudame lause lõpus oleva 'O' märgendi 'N'-iks (lauselõpupunkt muudab alati eelneva arvu järgarvuks);
                 # käändelõppudega arvud määratakse tihti asjatult järgarvudeks
                 if (postag == 'O' and '.' not in text_string and not re.search(r'\d+-?nd', text_string)) \
