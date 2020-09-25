@@ -688,7 +688,8 @@ def convert_sentence(sentence):
         last_index = len(text.words) - 1
 
         # restore any dots inside lemmas (they dissappear when there is more than two usually)
-        if text_lemma.count('.') < text_string.count('.'):
+        # morph considers the sentence period to be a part of the lemma if unsure (eg €.). Avoid that
+        if text_lemma.count('.') < text_string.count('.') and (i < last_index or text_lemma not in audible_symbols):
             restored_lemma = ""
             j = 0
             for letter in text_string:
