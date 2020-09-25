@@ -759,7 +759,7 @@ def convert_sentence(sentence):
                 text.morph_analysis[i].annotations[0].lemma = text_string
                 continue
 
-           if re.search(r'\d+', text_string):
+            if re.search(r'\d+', text_string):
                 # muudame lause lõpus oleva 'O' märgendi 'N'-iks (lauselõpupunkt muudab alati eelneva arvu järgarvuks);
                 # käändelõppudega arvud määratakse tihti asjatult järgarvudeks
                 if (postag == 'O' and '.' not in text_string and not re.search(r'\d+-?nd', text_string)) \
