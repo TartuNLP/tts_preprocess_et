@@ -594,6 +594,8 @@ def simplify_unicode(sentence):
     """
     sentence = sentence.replace("Ð", "D").replace("Þ", "Th")
     sentence = sentence.replace("ð", "d").replace("þ", "th")
+    sentence = sentence.replace("ø", "ö").replace("Ø", "Ö")
+    sentence = sentence.replace("ß", "ss").replace("ẞ", "Ss")
     sentence = re.sub(r'S(c|C)(h|H)', r'Š', sentence)
     sentence = re.sub(r'sch', r'š', sentence)
     sentence = re.sub(r'[ĆČ]', r'Tš', sentence)
