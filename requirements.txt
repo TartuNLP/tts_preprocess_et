@@ -1,1 +1,2 @@
 git+https://github.com/Koziev/rusyllab
+estnltk==1.6.9.1b0

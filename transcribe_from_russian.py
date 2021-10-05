@@ -124,9 +124,9 @@ def transcribe_word(word):
 
 def transcribe_text(text):
     words = re.findall(r"\w+|[^\w\s]|[\s]", text, re.UNICODE)
-    output = ''
+    output = []
     for word in words:
-        if word.isalpha() and not False in [i in alphabet for i in word]:
+        if word.isalpha() and False not in [i in alphabet for i in word.lower()]:
             word = transcribe_word(word)
-        output += word
-    return output
+        output.append(word)
+    return ''.join(output)
