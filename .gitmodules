@@ -1,0 +1,3 @@
+[submodule "rusyllab"]
+	path = rusyllab
+	url = https://github.com/Koziev/rusyllab
