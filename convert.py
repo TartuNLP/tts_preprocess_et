@@ -5,7 +5,8 @@ import unicodedata
 from estnltk import Text
 from estnltk.vabamorf.morf import Vabamorf
 from collections import OrderedDict
-from .assets import *
+from assets import *
+from transcribe_from_russian import transcribe_text
 
 synthesizer = Vabamorf()
 
@@ -655,6 +656,9 @@ def convert_sentence(sentence):
     # manual substitutions:
     # ... between numbers to kuni
     sentence = re.sub(r'(\d)\.\.\.(\d)', r'\g<1> kuni \g<2>', sentence)
+    
+    # converts russian words' letters into estonian letters (http://keeleabi.eki.ee/viki/Vene-eesti_transkriptsioon.html)
+    sentence = transcribe_text(sentence)
 
     # reduce Unicode repertoire _before_ inserting any hyphens
     sentence = simplify_unicode (sentence)
