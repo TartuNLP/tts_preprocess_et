@@ -1,4 +1,4 @@
-from rusyllab.rusyllab.rusyllab import split_word
+import rusyllab
 import re
 
 d = {
@@ -35,7 +35,7 @@ vowels = ['а', 'э', 'ы', 'о', 'у', 'я', 'е', 'и', 'ё', 'ю']
 
 
 def number_of_syllables(word):
-    return len(split_word(word))
+    return len(rusyllab.split_word(word))
 
 
 # "и" : üldjuhul "i"/sõna algul vokaali ees "j"
