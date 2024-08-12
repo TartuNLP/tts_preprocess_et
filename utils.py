@@ -3,7 +3,6 @@
 import re
 import unicodedata
 from estnltk.vabamorf.morf import Vabamorf
-from estnltk import Text
 from assets import audible_symbols, audible_connecting_symbols, units, \
                 genitive_postpositions, genitive_prepositions, nominative_preceeding_words,\
                 abbreviations, pronounceable_acronyms, cardinal_numbers,\
@@ -65,10 +64,21 @@ def restore_dots(text_string, text_lemma):
     return restored_lemma
 
 
-def tag_audible_symbols_abbreviations(text_lemma, index, last_index, text: Text, postag):
-    if text_lemma in audible_symbols or text_lemma in abbreviations:
+def tag_misc(text_string, text_lemma, index, last_index, text, postag):
+    # restore lemmas in abbreviation list to uppercase (lemma for 'PS' is lowercase 'ps', lemma for 'LP-l' however is 'LP')
+    # comparing text_string with text_lemma should suffice
+    if text_string in abbreviations and text_string.lower() == text_lemma:
+        text_lemma = text.morph_analysis[index].annotations[0].lemma = text_string
+    # lowercase capitalized first words in sentence/quote, otherwise abbreviation detection may fail
+    elif (index == 0 or (index > 0 and text.words[index - 1].text == '"')) and text_lemma.istitle():
+        text_lemma = text.morph_analysis[index].annotations[0].lemma = text_lemma.lower()
+            
+    stripped_lemma = text_lemma.rstrip('.')
+    if text_lemma in audible_symbols or stripped_lemma in abbreviations:
         if text_lemma not in audible_connecting_symbols:
-            return 'M'
+            # lühend lemmatiseerida ilma järgneva punktita
+            text_lemma = text.morph_analysis[index].annotations[0].lemma = stripped_lemma
+            return text_lemma, 'M'
         # symbols that are converted only between two numbers
         elif 0 < index < last_index:
             # erandjuhtumid on koolon ja miinusmärk, mida käsitleme tehtemärkidena vaid siis, kui
@@ -83,17 +93,17 @@ def tag_audible_symbols_abbreviations(text_lemma, index, last_index, text: Text,
                     is_applicable = False
             if is_applicable and (text.words[index - 1].partofspeech[0] in ('N', 'O')) \
                     and (text.words[index + 1].partofspeech[0] in ('N', 'O')):
-                return 'M'
+                return text_lemma, 'M'
     
     # ne-liitelised arvu sisaldavad sõnad asetame omadussõnaliste alla
     elif postag in ('Y', 'A') and re.match(r'^\d+-?\w*ne$', text_lemma):
-        return 'A'
+        return text_lemma, 'A'
     
     # aadresside, klasside jms käsitlemine, kus sõnaliigiks Y, nt Pärna 14a või 5b
     elif postag == 'Y' and re.search(r'\d+-?\w?$', text_lemma):
-        return 'K'
+        return text_lemma, 'K'
     
-    return False
+    return text_lemma, False
 
 
 def tag_numbers(text_string, postag, is_last_index):
@@ -118,25 +128,22 @@ def tag_numbers(text_string, postag, is_last_index):
     return False
 
 
-def tag_simple_roman(text_lemma, prev_word):
+def tag_roman_numbers(text_lemma, prev_word):
     # üldiselt on parem midagi asendamata jätta kui valesti öelda (Ca->sajas aasta, MM-l->kahe tuhandendal)
     # tegelikult vaja palju pisikesi erireegleid nagu: eelneb isikunimi, järgneb 'kvartal', on AC/DC jne
     # siia minimaalne välistus, aga kahtlasi kohti on veel (IV e intravenoosne tilguti jpm)
     if re.match('^(C|CD|DI|ID|DC|DIV|L|M|MI|MM|XL|XXL|XXX)$', text_lemma):
-        return True
+        return False
 
     # Rooma numbrile ärgu eelnegu araabia nr (12 V) või & (advokaadibüroo Y&I, R&D osakond)
     if re.search(r'[\d&]$', prev_word):
         return 'M'
 
     # erandjuhtum on 'C', mida ei tohi teisendada 'sajandaks', kui eelneb kraadimärk (Celsius)
-    if text_lemma == 'C':
-        if prev_word != '°':
-            return 'O'
-    else:
-        return 'O'
+    if text_lemma == 'C' and prev_word == '°':
+        return 'M'
     
-    return False
+    return 'O'
 
 
 """
@@ -235,12 +242,12 @@ def roman_to_integer(roman):
     :return: int
     """
     value = 0
-    if re.search('(I|X|C){4}', roman): return 0
-    if re.search('(V|L|D){2}', roman): return 0
+    if re.search('I{4}|X{4}|C{4}', roman): return 0
+    if re.search('V{2}|L{2}|D{2}', roman): return 0
     roman = roman.replace("IV", "IIII").replace("IX", "VIIII")
     roman = roman.replace("XL", "XXXX").replace("XC", "LXXXX")
     roman = roman.replace("CD", "CCCC").replace("CM", "DCCCC")
-    if re.search('(I|X|C){5}', roman): return 0
+    if re.search('I{5}|X{5}|C{5}', roman): return 0
     maxorder = 1000
     for c in roman:
         i = roman_numbers[c]
@@ -645,9 +652,8 @@ def pronounce_names(sentence):
     Converts names to match more closely to their correct pronunciation.
     E.g. Jeanne d'Arc -> Žan daark
     """
-    for word in sentence.split(' '):
-        word_analysis = synthesizer.analyze(word)
-        word_lemma = word_analysis[0]['analysis'][0]['lemma'].replace('’', '\'')
+    for word in synthesizer.analyze(sentence):
+        word_lemma = word['analysis'][0]['lemma'].replace('’', '\'')
         if names[word_lemma]:
             sentence = sentence.replace(word_lemma, names[word_lemma].replace('\'', ''))
     return sentence

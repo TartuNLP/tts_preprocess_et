@@ -4,7 +4,7 @@ import re
 from estnltk import Text
 from assets import last_resort, audible_symbols, abbreviations
 from utils import simplify_unicode, \
-    restore_dots, tag_audible_symbols_abbreviations, tag_numbers, tag_simple_roman, \
+    restore_dots, tag_misc, tag_numbers, tag_roman_numbers, \
     get_string, \
     pronounce_names, normalize_phrase, spell_if_needed, read_nums_if_needed
 from collections import defaultdict, OrderedDict
@@ -64,15 +64,7 @@ def find_conversions(sentence):
         
 
         if postag in misc_postags:
-            # restore lemmas in abbreviation list to uppercase (lemma for 'PS' is lowercase 'ps', lemma for 'LP-l' however is 'LP')
-            # comparing text_string with text_lemma should suffice
-            if text_string in abbreviations and text_string.lower() == text_lemma:
-                text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string
-            # lowercase capitalized first words in sentence/quote, otherwise abbreviation detection may fail
-            elif (i == 0 or (i > 0 and text.words[i - 1].text == '"')) and text_lemma.istitle():
-                text_lemma = text.morph_analysis[i].annotations[0].lemma = text_lemma.lower()
-            
-            tag = tag_audible_symbols_abbreviations(text_lemma, i, last_index, text, postag)
+            text_lemma, tag = tag_misc(text_string, text_lemma, i, last_index, text, postag)
             if tag:
                 tag_indices[tag].append(i)
                 continue
@@ -93,11 +85,10 @@ def find_conversions(sentence):
         # vaatame lemmat ehk selle tingimuslause alla mahuvad ka õigesti käänatud ja
         # käändelõppudega juhtumid, nt VI-le, IIIks
         if postag in ('O', 'Y') and re.match('^[IVXLCDM]+$', text_lemma):
-            tag = tag_simple_roman(text_lemma, '' if i == 0 else text.words[i - 1].text)
+            tag = tag_roman_numbers(text_lemma, '' if i == 0 else text.words[i - 1].text)
             if tag:
-                if type(tag) != type(True):
-                    tag_indices[tag].append(i)
-                continue
+                tag_indices[tag].append(i)
+            continue
         
         # juhtumid nagu nt VIIa või Xb klass võivad saada kas 'Y' või 'H' märgendi;
         # lõppu lubame vaid ühe väiketähe, et vältida pärisnimede nagu
