@@ -2,8 +2,8 @@
 
 import re
 from estnltk import Text
-from assets import last_resort, audible_symbols, abbreviations
-from utils import simplify_unicode, \
+from assets import last_resort, audible_symbols, abbreviations, units
+from utils import simplify_unicode, hyphen_phone_number, \
     restore_dots, tag_misc, tag_numbers, tag_roman_numbers, \
     get_string, \
     pronounce_names, normalize_phrase, spell_if_needed, read_nums_if_needed
@@ -13,17 +13,35 @@ from collections import defaultdict, OrderedDict
 def pre_process(sentence):
     # manual substitutions:
     # ... between numbers to kuni
-    sentence = re.sub(r'(\d)\.\.\.(\d)', r'\g<1> kuni \g<2>', sentence)
+    sentence = re.sub(r'(\d)\.\.\.?(\d)', r'\g<1> kuni \g<2>', sentence)
 
     # reduce Unicode repertoire _before_ inserting any hyphens
     sentence = simplify_unicode(sentence)
 
-    # add a hyphen between any number-letter sequences  # TODO should not be done in URLs
+    # hyphenate bank iban code
+    sentence = re.sub(r'[A-Z]{2}\d{18,22}', lambda match: '-'.join(match.group()), sentence)
+
+    # hyphenate number from word ending e.g. DigiDoc4 -> DigiDoc-4 
+    sentence = re.sub(r'(?<![A-ZÄÖÜÕŽŠa-zäöüõšž0-9\-])([A-ZÄÖÜÕŽŠa-zäöüõšž]+)(\d+)(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
+
+    # hyphenate words containing a number in the middle (mostly for letter-digit mixed codes)
+    sentence = re.sub(r'(\d*[A-ZÄÖÜÕŽŠa-zäöüõšž]+\d[A-ZÄÖÜÕŽŠa-zäöüõšž0-9]*)', lambda match: '-'.join(match.group()) if len(match.group()) >= 5 else match.group(), sentence)
+
+    # hyphenate any number-letter sequences  # TODO should not be done in URLs
     sentence = re.sub(r'(\d)([A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
     sentence = re.sub(r'([A-ZÄÖÜÕŽŠa-zäöüõšž])(\d)', r'\g<1>-\g<2>', sentence)
+
+    # hyphenate capitalized joined words
+    sentence = re.sub(r'([a-zäöüõšž])([A-ZÄÖÜÕŽŠ][a-zäöüõšž]*)', lambda match: f'{match.group(1)}-{match.group(2)}' if not match.group() in abbreviations else match.group(), sentence)
+
+    # separate + and add hyphen between every digit in phone number
+    sentence = re.sub(r'(\+\d{3})? (\d{3}) (\d{4,5}|(\d{2} \d{2}))', hyphen_phone_number, sentence)
+    
     # remove grouping between numbers
     # keeping space in 2006-10-27 12:48:50, in general require group of 3
-    sentence = re.sub(r'([0-9]) ([0-9]{3})(?!\d)', r'\g<1>\g<2>', sentence)
+    sentence = re.sub(r'(?<![0-9\-])([0-9]{1,3}) ([0-9]{3})(?!\d)', r'\g<1>\g<2>', sentence)
+
+    sentence = re.sub(r'(\d) (\d)', r'\g<1>-\g<2>', sentence)
 
     return sentence
 
@@ -84,7 +102,8 @@ def find_conversions(sentence):
 
         # vaatame lemmat ehk selle tingimuslause alla mahuvad ka õigesti käänatud ja
         # käändelõppudega juhtumid, nt VI-le, IIIks
-        if postag in ('O', 'Y') and re.match('^[IVXLCDM]+$', text_lemma):
+        # lisaks ei tohiksrooma numbrile järgneda araabia number
+        if postag in ('O', 'Y') and re.match('^[IVXLCDM]+$', text_lemma) and (len(text.morph_analysis.partofspeech) == i+1 or not text.morph_analysis.partofspeech[i+1][0] in num_postags):
             tag = tag_roman_numbers(text_lemma, '' if i == 0 else text.words[i - 1].text)
             if tag:
                 tag_indices[tag].append(i)
@@ -146,29 +165,37 @@ def sentence_part_conversion(index, start_pos, end_pos, elem, text, location_dic
     # pärast jutumärki, siis tekitame samuti esisuurtähe
     elif text.text[start_pos - 1] == '"':
         elem = elem.capitalize()
+    
     # kui teisenduse algus ei ole lause esimene täht, siis vaatame, kas on vaja tühik vahele lisada
     if start_pos > 0 and not re.match(r'[\s\d:;–\-_("]', text.text[start_pos - 1]):
         elem = ' ' + elem
+    
     # kui teisenduse lõpp ei ole lause viimane täht, siis vaatame, kas on vaja tühik
     # vahele lisada (vajalik juhtudel, kus originaallauses on tühikuta, nt 5.b)
     if end_pos != len(text.text) and not re.match(r'[\s\d.,:;–\-_()!?"]', text.text[end_pos]):
         elem += ' '
+    
     # kui tegu ei ole viimase elemendiga sõnastikus location_dict
     if index < len(location_dict.keys()) - 1:
         # leiame järgmise sõna alguse indeksi
-        next_index = list(location_dict.items())[index + 1][0][0]
+        next_index_start, next_index_end = list(location_dict.items())[index + 1][0]
         # kontrollime, kas algtekstis on vaja muudatusi teha (vajalik nt vahemike puhul,
         # kus kaks teisendust on kõrvuti ja nende vahel side- või mõttekriips,
         # et eemaldada lõpptekstist kahe sõna vahelised kirjavahemärgid)
-        if re.match(r'^[.\s]?[\-:]\s?$', text.text[end_pos:next_index]):
+        if re.match(r'^[.\s]?[\-:]\s?$', text.text[end_pos:next_index_start]):
             in_between = ' '
         # kui tegu on mõttekriipsu või kolme punktiga kahe teisenduse vahel,
         # siis asendame sõnaga 'kuni'
-        elif re.match(r'^\s?[.]?–\s?$', text.text[end_pos:next_index]) or \
-                re.match(r'^\s?\.{3}\s?$', text.text[end_pos:next_index]):
+        elif re.match(r'^\s?[.]?–\s?$', text.text[end_pos:next_index_start]) or \
+                re.match(r'^\s?\.{3}\s?$', text.text[end_pos:next_index_start]):
             in_between = ' kuni '
         else:
-            in_between = text.text[end_pos:next_index]
+            in_between = text.text[end_pos:next_index_start]
+        
+        # kui kaldkriips esineb enne ühikut
+        if in_between.endswith('/') and text.text[next_index_start:next_index_end] in units:
+            in_between = in_between[:-1]
+
         # kui tegu on esimese elemendiga sõnastikus
         if index == 0:
             return text.text[:start_pos] + elem + in_between
@@ -209,17 +236,24 @@ def post_process(sentence):
     sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'http://', r' HTTP koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'\?([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' küsimärk \g<1>', sentence)
-    sentence = re.sub(r'/([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' kaldkriips \g<1>', sentence)
+    #sentence = re.sub(r'/([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' kaldkriips \g<1>', sentence)
     sentence = re.sub(r'\.([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt \g<1>', sentence)
-    sentence = re.sub(r'\) ', r', ', sentence) # pausi tekitamiseks
+    sentence = re.sub(r' ?\(', ',(', sentence) # pausi tekitamiseks enne sulge
+    sentence = re.sub(r' ?\[', ',[', sentence) # pausi tekitamiseks enne nurksulge
+    sentence = re.sub(r'(\)|\]),? ', ', ', sentence) # pausi tekitamiseks peale sulge
+    sentence = re.sub(r'(\)|\]).', '.', sentence) # kaotab sulu lõpu, kui see asub lause lõpus
     sentence = re.sub(r' +', r' ', sentence)
 
+    # temporarily remove whitespace around last resort symbols
     # replace annoying long repetitions with ' repeating symbol X ',
     # then any remaining symbols (in URLs etc) that look like audible
     for key in last_resort:
-        korduv = re.escape(key) + '{4,}'
+        escaped_key = re.escape(key)
+        sentence = re.sub(r' ?{} ?'.format(escaped_key), r'{}'.format(escaped_key), sentence)
+        korduv = escaped_key + '{4,}'
         sentence = re.sub(r'{}'.format(korduv), r" korduv märk{}".format(last_resort[key]), sentence)
     sentence = sentence.translate( str.maketrans(last_resort) )
+    sentence = sentence.replace('\\', '')
 
     sentence = pronounce_names(sentence)
 
@@ -242,6 +276,9 @@ def convert_sentence(sentence):
         Converts a sentence to input supported by Estonian text-to-speech application.
         :param sentence: str
         :return: str
+
+        #TODO
+        :param sdh: bool
         """
     
     sentence = pre_process(sentence)

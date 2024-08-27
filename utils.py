@@ -43,6 +43,14 @@ def simplify_unicode(sentence):
     sentence = re.sub(r'[^A-ZÄÖÜÕŽŠa-zäöüõšž ,]+', lambda m: r'{}'.format( strip_combining(m.group(0)) ), sentence)
     return sentence
 
+def hyphen_phone_number(match):
+    country = match.group(1)
+    num_start = '-'.join(match.group(2))
+    num_end = '-'.join(match.group(3).replace(' ', ''))
+    
+    if country:
+        return f'+ {"-".join(country[1:])}-{num_start}-{num_end}'
+    return f'{num_start}-{num_end}'
 
 """
 Conversion finding functions
@@ -358,7 +366,7 @@ def inflect(original_as_string, own_case, next_case, ordinal):
     else:
         synthesized = synthesizer.synthesize(parts_as_strings[-1], case)
         if len(synthesized) > 0:
-            inflected.append(synthesized[0])
+            inflected.append(re.sub(r'-essu', '-essi', synthesized[0]))
         else:
             return original_as_string
 
@@ -432,7 +440,7 @@ def get_string(text, index, tag):
         # mis ei anna vajalikku teavet)
         if index < len(text.words) - 2:
             # loetelu tuvastamiseks vaatame algteksti alates käesoleva sõna algusest
-            if re.match(r'(\d+\.?,?\s)+(ja|või|ja/või|ning|ega|kui)\s\d', text.text[text.words[index].start:]):
+            if re.match(r'(((\d+\.?)|([IVXLCDM]+-?\w*)),?\s)+(ja|või|ja/või|ning|ega|kui)\s((\d)|([IVXLCDM]+))', text.text[text.words[index].start:]):
                 is_list = True
             # vahemiku tuvastamiseks vaatame järgmise sõna kuju ja ülejärgmise sõnaliiki
             if re.match(r'^(\.?([–\-]))|kuni$', text.words[index + 1].text) \
@@ -483,7 +491,10 @@ def get_string(text, index, tag):
                 current_case = word.form[0]
                 if re.match(r'(sg|pl)\s\w+', current_case):
                     if tag != 'O' and word.partofspeech[0] == 'A' and word.lemma[0].endswith('ne'):
-                        next_case = 'sg g'
+                        # changed due to sometimes getting wrong number inflections 
+                        next_case = word.form[0]
+                        #next_case = 'sg g'
+                        
                         is_adj_phrase = True
                         # print('Leidsin omadussõnalise fraasi')
                         break
@@ -545,7 +556,8 @@ def get_string(text, index, tag):
             if lemma in audible_symbols:
                 as_string = audible_symbols[lemma]
             elif lemma in abbreviations:
-                as_string = abbreviations[lemma]
+                if not (lemma == 'u' and current_case == '?'):
+                    as_string = abbreviations[lemma]
 
     # määrame tõeväärtuse ordinal (vajalik käänamise fn-i jaoks) vastavalt märgendile
     if tag == 'O':
@@ -635,6 +647,10 @@ def get_string(text, index, tag):
                     if is_adj_phrase:
                         own_case = 'sg g'
                     as_string = inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal)
+                # kui ühik on kujul ühik1/ühik2
+                elif prev_lemma == '/':
+                    own_case = 'sg g'
+                    as_string = inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal) + ' kohta'
         # kui ei ole kvantifitseeritav, siis oma käände puudumisel lühendit/sümbolit ei kääna
         else:
             return as_string
