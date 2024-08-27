@@ -19,7 +19,7 @@ def pre_process(sentence):
     sentence = simplify_unicode(sentence)
 
     # hyphenate bank iban code
-    sentence = re.sub(r'[A-Z]{2}\d{18,22}', lambda match: '-'.join(match.group()), sentence)
+    sentence = re.sub(r'[a-zA-Z]{2}[0-9]{2}[a-zA-Z0-9]{4}[0-9]{7}([a-zA-Z0-9]?){0,16}', lambda match: '-'.join(match.group()), sentence)
 
     # hyphenate number from word ending e.g. DigiDoc4 -> DigiDoc-4 
     sentence = re.sub(r'(?<![A-ZÄÖÜÕŽŠa-zäöüõšž0-9\-])([A-ZÄÖÜÕŽŠa-zäöüõšž]+)(\d+)(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
@@ -102,7 +102,7 @@ def find_conversions(sentence):
 
         # vaatame lemmat ehk selle tingimuslause alla mahuvad ka õigesti käänatud ja
         # käändelõppudega juhtumid, nt VI-le, IIIks
-        # lisaks ei tohiksrooma numbrile järgneda araabia number
+        # lisaks ei tohiks rooma numbrile järgneda araabia number
         if postag in ('O', 'Y') and re.match('^[IVXLCDM]+$', text_lemma) and (len(text.morph_analysis.partofspeech) == i+1 or not text.morph_analysis.partofspeech[i+1][0] in num_postags):
             tag = tag_roman_numbers(text_lemma, '' if i == 0 else text.words[i - 1].text)
             if tag:
@@ -236,12 +236,10 @@ def post_process(sentence):
     sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'http://', r' HTTP koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'\?([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' küsimärk \g<1>', sentence)
-    #sentence = re.sub(r'/([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' kaldkriips \g<1>', sentence)
     sentence = re.sub(r'\.([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt \g<1>', sentence)
-    sentence = re.sub(r' ?\(', ',(', sentence) # pausi tekitamiseks enne sulge
-    sentence = re.sub(r' ?\[', ',[', sentence) # pausi tekitamiseks enne nurksulge
-    sentence = re.sub(r'(\)|\]),? ', ', ', sentence) # pausi tekitamiseks peale sulge
-    sentence = re.sub(r'(\)|\]).', '.', sentence) # kaotab sulu lõpu, kui see asub lause lõpus
+    sentence = re.sub(r' ?(\(|\[)', r',\g<1>', sentence) # pausi tekitamiseks enne sulge
+    sentence = re.sub(r'(\)|\]),? ', ', ', sentence) # kaotab sulu lõpu ja tekitab pausi peale sulge
+    sentence = re.sub(r'(\)|\])([.!?]?)$', r'\g<2>', sentence) # kaotab sulu lõpu lause lõpus
     sentence = re.sub(r' +', r' ', sentence)
 
     # temporarily remove whitespace around last resort symbols

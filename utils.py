@@ -647,7 +647,7 @@ def get_string(text, index, tag):
                     if is_adj_phrase:
                         own_case = 'sg g'
                     as_string = inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal)
-                # kui ühik on kujul ühik1/ühik2
+                # kui enne ühikut esineb kaldkriips
                 elif prev_lemma == '/':
                     own_case = 'sg g'
                     as_string = inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal) + ' kohta'
