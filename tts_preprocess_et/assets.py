@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import defaultdict
+import importlib
 
 audible_symbols = {'@': 'ät', '$': 'dollar', '%': 'protsent', '&': 'ja', '+': 'pluss',
                    '=': 'võrdub', '€': 'euro', '£': 'nael', '§': 'paragrahv', '°': 'kraad',
@@ -18,6 +19,7 @@ last_resort = {
     '/': ' kaldkriips ',
     '(': ' sulgudes ',
 	'[': ' nurksulgudes ',
+    '{': ' looksulgudes ',
     '#': ' trellid ',
     '*': ' tärn ',
     '&': ' ampersand ',
@@ -285,9 +287,26 @@ alphabet = defaultdict(lambda: '', {
     'Y': 'igrek'
 })
 
+special_names = {
+    'DigiDoc': 'Digi-Dokk',
+    'DigiDoc3': 'Digi-Dokk-3',
+    'DigiDoc4': 'Digi-Dokk-4',
+    'EstEID': 'Est - E - I - D',
+    'eID': 'E - I - D',
+    'TartuNLP': 'Tartu - N - L - P',
+}
+
 names = defaultdict(lambda: None)
 
+with importlib.resources.path('tts_preprocess_et', 'data') as data_path:
+    names_path = data_path / "names.txt"
+    with open(names_path, encoding='utf8') as f:
+        for line in f.readlines():
+            key, val = line.strip('\n').split('\t')
+            names[key] = val
+'''
 with open('names.txt', encoding='utf8') as f:
 	for line in f.readlines():
 		key, val = line.strip('\n').split('\t')
 		names[key] = val
+'''

@@ -3,7 +3,7 @@
 import re
 import unicodedata
 from estnltk.vabamorf.morf import Vabamorf
-from assets import audible_symbols, audible_connecting_symbols, units, \
+from .assets import audible_symbols, audible_connecting_symbols, units, \
                 genitive_postpositions, genitive_prepositions, nominative_preceeding_words,\
                 abbreviations, pronounceable_acronyms, cardinal_numbers,\
                 ordinal_numbers, roman_numbers, alphabet, names
@@ -366,7 +366,7 @@ def inflect(original_as_string, own_case, next_case, ordinal):
     else:
         synthesized = synthesizer.synthesize(parts_as_strings[-1], case)
         if len(synthesized) > 0:
-            inflected.append(re.sub(r'-essu', '-essi', synthesized[0]))
+            inflected.append(re.sub('-essu', '-essi', synthesized[0]))
         else:
             return original_as_string
 

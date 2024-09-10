@@ -1,3 +1,6 @@
+build
 /.idea/
 __pycache__/
+tts_preprocess_et/__pycache__/
+tts_preprocess_et.egg-info/
 test.py

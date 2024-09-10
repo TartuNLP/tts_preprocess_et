@@ -2,15 +2,15 @@
 
 import re
 from estnltk import Text
-from assets import last_resort, audible_symbols, abbreviations, units
-from utils import simplify_unicode, hyphen_phone_number, \
+from .assets import last_resort, audible_symbols, abbreviations, units, special_names
+from .utils import simplify_unicode, hyphen_phone_number, \
     restore_dots, tag_misc, tag_numbers, tag_roman_numbers, \
     get_string, \
     pronounce_names, normalize_phrase, spell_if_needed, read_nums_if_needed
 from collections import defaultdict, OrderedDict
 
 
-def pre_process(sentence):
+def pre_process(sentence, accessibility):
     # manual substitutions:
     # ... between numbers to kuni
     sentence = re.sub(r'(\d)\.\.\.?(\d)', r'\g<1> kuni \g<2>', sentence)
@@ -21,11 +21,12 @@ def pre_process(sentence):
     # hyphenate bank iban code
     sentence = re.sub(r'[a-zA-Z]{2}[0-9]{2}[a-zA-Z0-9]{4}[0-9]{7}([a-zA-Z0-9]?){0,16}', lambda match: '-'.join(match.group()), sentence)
 
-    # hyphenate number from word ending e.g. DigiDoc4 -> DigiDoc-4 
-    sentence = re.sub(r'(?<![A-ZÄÖÜÕŽŠa-zäöüõšž0-9\-])([A-ZÄÖÜÕŽŠa-zäöüõšž]+)(\d+)(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
+    # hyphenate number from word ending e.g. DigiDoc4 -> digi-dokk-4
+    sentence = re.sub(r'(^| )\"?({})((,?\"? |\.\"?)|$)'.format('|'.join(map(re.escape, special_names.keys()))), lambda match: match.group().replace(match.group(2), special_names[match.group(2)]), sentence)
+    #sentence = re.sub(r'(?<![A-ZÄÖÜÕŽŠa-zäöüõšž0-9\-])([A-ZÄÖÜÕŽŠa-zäöüõšž]+)(\d+)(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
 
     # hyphenate words containing a number in the middle (mostly for letter-digit mixed codes)
-    sentence = re.sub(r'(\d*[A-ZÄÖÜÕŽŠa-zäöüõšž]+\d[A-ZÄÖÜÕŽŠa-zäöüõšž0-9]*)', lambda match: '-'.join(match.group()) if len(match.group()) >= 5 else match.group(), sentence)
+    sentence = re.sub(r'(([A-ZÄÖÜÕŽŠa-zäöüõšž]+\d|\d+[A-ZÄÖÜÕŽŠa-zäöüõšž])[A-ZÄÖÜÕŽŠa-zäöüõšž0-9]*)', lambda match: ', '.join(match.group()) + ',' if len(match.group()) >= 5 else match.group(), sentence)
 
     # hyphenate any number-letter sequences  # TODO should not be done in URLs
     sentence = re.sub(r'(\d)([A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
@@ -42,6 +43,9 @@ def pre_process(sentence):
     sentence = re.sub(r'(?<![0-9\-])([0-9]{1,3}) ([0-9]{3})(?!\d)', r'\g<1>\g<2>', sentence)
 
     sentence = re.sub(r'(\d) (\d)', r'\g<1>-\g<2>', sentence)
+
+    if accessibility:
+        sentence = re.sub(r'((?<=[^A-ZÄÖÜÕŽŠa-zäöüõšž])|^)( ?)([A-ZÄÖÜÕŽŠ])(?=([^A-ZÄÖÜÕŽŠa-zäöüõšž]|$))', lambda match: match.group(2) + 'suur-täht-' + match.group(3).lower(), sentence)
 
     return sentence
 
@@ -221,7 +225,7 @@ def apply_conversions(text, conversions):
     return new_sentence
 
 
-def post_process(sentence):
+def post_process(sentence, accessibility):
     """
     Postprocessing to normalize the sentence and convert any URLs.
     :param sentence:
@@ -235,11 +239,25 @@ def post_process(sentence):
     sentence = re.sub(r'\.ee(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt EE', sentence)
     sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
     sentence = re.sub(r'http://', r' HTTP koolon kaldkriips kaldkriips ', sentence)
-    sentence = re.sub(r'\?([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' küsimärk \g<1>', sentence)
+
+    #lauselõpumärgid
+    if accessibility:
+        sentence = sentence.replace('?', ' küsimärk ')
+        sentence = sentence.replace('!', ' hüüumärk ')
+    else:
+        sentence = re.sub(r'\?([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' küsimärk \g<1>', sentence)
+    sentence = re.sub(r',(\.?)$', r'\g<1>', sentence)
     sentence = re.sub(r'\.([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt \g<1>', sentence)
-    sentence = re.sub(r' ?(\(|\[)', r',\g<1>', sentence) # pausi tekitamiseks enne sulge
-    sentence = re.sub(r'(\)|\]),? ', ', ', sentence) # kaotab sulu lõpu ja tekitab pausi peale sulge
-    sentence = re.sub(r'(\)|\])([.!?]?)$', r'\g<2>', sentence) # kaotab sulu lõpu lause lõpus
+
+    #sulud
+    sentence = re.sub(r' ?(\(|\[|\{)', r',\g<1>', sentence) # pausi tekitamiseks enne sulge
+    if accessibility:
+        sentence = re.sub(r'(\)|\]|\}),? ', ', sulu lõpp,', sentence) # loeb sulu lõpu ja tekitab pausi peale sulge
+        sentence = re.sub(r'(\)|\]|\})([.!?]?)$', r', sulu lõpp\g<2>', sentence) # loeb sulu lõpu lause lõpus
+    else:
+        sentence = re.sub(r'(\)|\]|\}),? ', ', ', sentence) # kaotab sulu lõpu ja tekitab pausi peale sulge
+        sentence = re.sub(r'(\)|\]|\})([.!?]?)$', r'\g<2>', sentence) # kaotab sulu lõpu lause lõpus
+    
     sentence = re.sub(r' +', r' ', sentence)
 
     # temporarily remove whitespace around last resort symbols
@@ -269,17 +287,17 @@ def post_process(sentence):
     return sentence
 
 
-def convert_sentence(sentence):
+def convert_sentence(sentence, accessibility=False):
     """
         Converts a sentence to input supported by Estonian text-to-speech application.
         :param sentence: str
         :return: str
 
         #TODO
-        :param sdh: bool
+        :param accessibility: bool
         """
     
-    sentence = pre_process(sentence)
+    sentence = pre_process(sentence, accessibility)
 
     # Otsib, kas midagi tuleb teisendada
     text, conversions = find_conversions(sentence)
@@ -288,4 +306,4 @@ def convert_sentence(sentence):
     if len(conversions) > 0:
         sentence = apply_conversions(text, conversions)
     
-    return post_process(sentence)
+    return post_process(sentence, accessibility)
