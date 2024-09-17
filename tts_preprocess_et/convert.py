@@ -23,8 +23,10 @@ def pre_process(sentence, accessibility):
 
     # hyphenate number from word ending e.g. DigiDoc4 -> digi-dokk-4
     sentence = re.sub(r'(^| )\"?({})((,?\"? |\.\"?)|$)'.format('|'.join(map(re.escape, special_names.keys()))), lambda match: match.group().replace(match.group(2), special_names[match.group(2)]), sentence)
-    #sentence = re.sub(r'(?<![A-ZÄÖÜÕŽŠa-zäöüõšž0-9\-])([A-ZÄÖÜÕŽŠa-zäöüõšž]+)(\d+)(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
-
+    
+    # names starting with a capitalised sequence, ending with a word e.g. ASRock
+    sentence = re.sub(r'[A-ZÄÖÜÕŽŠ][A-ZÄÖÜÕŽŠ]+(?=[a-zäöüõšž]+)', lambda match: '-'.join(match.group()), sentence)
+    
     # hyphenate words containing a number in the middle (mostly for letter-digit mixed codes)
     sentence = re.sub(r'(([A-ZÄÖÜÕŽŠa-zäöüõšž]+\d|\d+[A-ZÄÖÜÕŽŠa-zäöüõšž])[A-ZÄÖÜÕŽŠa-zäöüõšž0-9]*)', lambda match: ', '.join(match.group()) + ',' if len(match.group()) >= 5 else match.group(), sentence)
 
