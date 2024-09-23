@@ -7,14 +7,32 @@ The script follows the rules of Estonian orthography. Internationally used forms
 - Ranges use a dash (not a hyphen).
 - Long numbers are grouped by spaces (not commas or dots)
 - Dashes between numbers that are separated by spaces are considered to be minuses, otherwise they are ranges
-- Decimal fractions use commas (not dots) 
+- Decimal fractions use commas (not dots)
+
 
 ### Requirement:
 - Python (>= 3.7)
 - EstNLTK (>= 1.7.0)
 
-### Features
 
+### Usage
+Install from command line:\
+`pip install git+https://github.com/TartuNLP/tts_preprocess_et@main`
+
+Add to project (requirements.txt):\
+`git+https://github.com/TartuNLP/tts_preprocess_et@main`
+
+Import:\
+`from tts_preprocess_et.convert import convert_sentence`
+
+Processing a sentence:\
+`processed_sentence = convert_sentence(sentence_string)`
+
+Processing with accessibility mode:\
+`processed_sentence = convert_sentence(sentence_string, accessibility=True)`
+
+
+### Features
 
 - [x] Converting Arabian numbers to words, including numbers that are grouped with spaces. Example: `10 000 → kümme tuhat`
 - [x] Detecting ordinal numbers and converting them. Example: `1. → esimene`
