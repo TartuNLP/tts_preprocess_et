@@ -292,12 +292,20 @@ def post_process(sentence, accessibility):
 def convert_sentence(sentence, accessibility=False):
     """
         Converts a sentence to input supported by Estonian text-to-speech application.
-        :param sentence: str
-        :return: str
-
-        #TODO
-        :param accessibility: bool
-        """
+        
+        Parameters
+        ----------
+        sentence: str ()
+            Input sentence
+        accessibility: bool (default: False)
+            True: question and exclamation marks are spelled out, upper case letters in alphanumeric codes are distinguished as such.\\
+            False: normal conversion.
+        
+        Returns
+        ----------
+        str
+            Converted sentence.
+    """
     
     sentence = pre_process(sentence, accessibility)
 
