@@ -7,24 +7,41 @@ The script follows the rules of Estonian orthography. Internationally used forms
 - Ranges use a dash (not a hyphen).
 - Long numbers are grouped by spaces (not commas or dots)
 - Dashes between numbers that are separated by spaces are considered to be minuses, otherwise they are ranges
-- Decimal fractions use commas (not dots) 
+- Decimal fractions use commas (not dots)
+
 
 ### Requirement:
-- Python 3
-- EstNLTK (>= 1.6.0)
+- Python (>= 3.7)
+- EstNLTK (>= 1.7.0)
+
+
+### Usage
+Install from command line:\
+`pip install git+https://github.com/TartuNLP/tts_preprocess_et@main`
+
+Add to project (requirements.txt):\
+`git+https://github.com/TartuNLP/tts_preprocess_et@main`
+
+Import:\
+`from tts_preprocess_et.convert import convert_sentence`
+
+Processing a sentence:\
+`processed_sentence = convert_sentence(sentence_string)`
+
+Processing with accessibility mode:\
+`processed_sentence = convert_sentence(sentence_string, accessibility=True)`
+
 
 ### Features
 
-
-- [x] Converting Arabian numbers to words, including numbers that are grouped with spaces. Example: `10 000 → kümme
- tuhat`
+- [x] Converting Arabian numbers to words, including numbers that are grouped with spaces. Example: `10 000 → kümme tuhat`
 - [x] Detecting ordinal numbers and converting them. Example: `1. → esimene`
 - [x] Detecting the correct case from a suffix. Example: `1-le → ühele`
 - [x] Numbers followed by a *-ne*/*-line* adjective. Example: `1-aastane → ühe aastane`
 - [x] Detecting the correct case from upcoming words and their forms. Example: `1 sõbrale → ühele sõbrale; 1 sõbraga → ühe sõbraga`
 - [x] Detecting the correct case from adpositions. Example: `üle 1 → üle ühe; 1 võrra → ühe võrra`
 - [x] Detecting and converting Roman numerals. Example: `I → esimene`
-- [x] Declining numbers in simple lists. Example: `1. ja 2. juunil → esimesel ja teisel juunil`
+- [x] Detecting numbers in simple lists. Examples: `1. ja 2. juunil → esimesel ja teisel juunil`, `II, III või IV liigast → teisest, kolmandast või neljandast liigast`
 - [x] Converting and declining audible symbols. Example: `% → protsent`
 - [x] Converting and declining common abbreviations. Example: `jne → ja nii edasi`
 - [x] Converting simple mathematic equations. Example: `1 + 1 = 2 → üks pluss üks võrdub kaks`
@@ -55,6 +72,15 @@ The script follows the rules of Estonian orthography. Internationally used forms
 `</del>` bee`
 - [ ] Censored words should not be interpreted as abbreviations. Example: `p***e → `<del>`punkt***ehk`</del>
 - [ ] Detecting abbreviated *-ne*/*-line* adjectives. Example: `5 km vahemaa → `<del>`viis kilomeetrit`</del>` viie kilomeetrine vahemaa`
+- [x] Detecting relative units. Example: `kg/m³ → kilogrammi kuupmeetri kohta`
 - [x] Numbers larger than 10^27
+- [x] Detecting and pronouncing alphanumeric codes. Example: `2KMc7hy → kaks, kaa, emm, tsee, seitse, haa, igrek`
 - [ ] Detection of which consonant combinations can be pronounced and which need to be spelled out letter by letter (`ERM` vs `ERR`). Useful for abbreviations and URLs.
 - [ ] Handling unmapped use cases: post-processing to make sure that all information that remains in the output is readable for speech synthesis and potentially creating a more robust mode where everything is always converted but disregarding the correct form.
+- Detecting and reading out brackets ('()', '[]', '{}') in a sentence. Example: `2. koht (hõbe) → Teine koht, sulgudes hõbe`
+
+
+Accessibility mode:
+- [x] Differentiating capital letters in alphanumeric codes. Example: `2KMc7hy → kaks, suur-täht-kaa, suur-täht-emm, tsee, seitse, haa, igrek`
+- [x] Reading out exclamation and question marks. Example: `Appi! → Appi hüüumärk`
+- [x] Reading out bracket endings. Example: `2. koht (hõbe) → Teine koht, sulgudes hõbe, sulu lõpp`

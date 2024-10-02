@@ -2,41 +2,165 @@
 
 import re
 import unicodedata
-from estnltk import Text
 from estnltk.vabamorf.morf import Vabamorf
-from collections import OrderedDict
-from .assets import *
+from .assets import audible_symbols, audible_connecting_symbols, units, \
+                genitive_postpositions, genitive_prepositions, nominative_preceeding_words,\
+                abbreviations, pronounceable_acronyms, cardinal_numbers,\
+                ordinal_numbers, roman_numbers, alphabet, names
 
 synthesizer = Vabamorf()
 
 
-def roman_to_integer(roman):
-    """
-    1001. implementation of "Convert a string of Roman numerals to an integer"
-    Returns 0 if the syntax is not correct (VX, CCD, IIII, MVM etc)
-    :param roman: str
-    :return: int
-    """
-    value = 0
-    if re.search('(I|X|C){4}', roman): return 0
-    if re.search('(V|L|D){2}', roman): return 0
-    roman = roman.replace("IV", "IIII").replace("IX", "VIIII")
-    roman = roman.replace("XL", "XXXX").replace("XC", "LXXXX")
-    roman = roman.replace("CD", "CCCC").replace("CM", "DCCCC")
-    if re.search('(I|X|C){5}', roman): return 0
-    maxorder = 1000
-    for c in roman:
-        i = roman_numbers[c]
-        if i > maxorder:
-            return 0
-        else:
-            maxorder = i
-            value += i
-    return value
+"""
+Preprocess functions
+"""
 
+def strip_combining(s):
+    """
+    Helper function for simplify_unicode
+    """
+    return u''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+
+def simplify_unicode(sentence):
+    """
+    Most accented Latin characters are pronounced just the same as the base character.
+    Shrink as many extended Unicode repertoire into the Estonian alphabet as possible.
+    It is GOOD for machine learning to have smaller ortographic repertoire.
+    It is a BAD idea if we start using any proper name dictionaries for morph analysis
+      or pronunciations later on. You are warned.
+    :param sentence:
+    :return: str
+    """
+    sentence = sentence.replace("Ð", "D").replace("Þ", "Th")
+    sentence = sentence.replace("ð", "d").replace("þ", "th")
+    sentence = sentence.replace("ø", "ö").replace("Ø", "Ö")
+    sentence = sentence.replace("ß", "ss").replace("ẞ", "Ss")
+    sentence = re.sub(r'S(c|C)(h|H)', r'Š', sentence)
+    sentence = re.sub(r'sch', r'š', sentence)
+    sentence = re.sub(r'[ĆČ]', r'Tš', sentence)
+    sentence = re.sub(r'[ćč]', r'tš', sentence)
+
+    sentence = re.sub(r'[^A-ZÄÖÜÕŽŠa-zäöüõšž ,]+', lambda m: r'{}'.format( strip_combining(m.group(0)) ), sentence)
+    return sentence
+
+def hyphen_phone_number(match):
+    country = match.group(1)
+    num_start = '-'.join(match.group(2))
+    num_end = '-'.join(match.group(3).replace(' ', ''))
+    
+    if country:
+        return f'+ {"-".join(country[1:])}-{num_start}-{num_end}'
+    return f'{num_start}-{num_end}'
+
+"""
+Conversion finding functions
+"""
+
+def restore_dots(text_string, text_lemma):
+    restored_lemma = ""
+    j = 0
+    for letter in text_string:
+        if j < len(text_lemma) and letter == text_lemma[j]:
+            restored_lemma += letter
+            j += 1
+        elif letter == '.':
+            restored_lemma += '.'
+        else:
+            if j < len(text_lemma):
+                restored_lemma += text_lemma[j:]
+            break
+    return restored_lemma
+
+
+def tag_misc(text_string, text_lemma, index, last_index, text, postag):
+    # restore lemmas in abbreviation list to uppercase (lemma for 'PS' is lowercase 'ps', lemma for 'LP-l' however is 'LP')
+    # comparing text_string with text_lemma should suffice
+    if text_string in abbreviations and text_string.lower() == text_lemma:
+        text_lemma = text.morph_analysis[index].annotations[0].lemma = text_string
+    # lowercase capitalized first words in sentence/quote, otherwise abbreviation detection may fail
+    elif (index == 0 or (index > 0 and text.words[index - 1].text == '"')) and text_lemma.istitle():
+        text_lemma = text.morph_analysis[index].annotations[0].lemma = text_lemma.lower()
+            
+    stripped_lemma = text_lemma.rstrip('.')
+    if text_lemma in audible_symbols or stripped_lemma in abbreviations:
+        if text_lemma not in audible_connecting_symbols:
+            # lühend lemmatiseerida ilma järgneva punktita
+            text_lemma = text.morph_analysis[index].annotations[0].lemma = stripped_lemma
+            return text_lemma, 'M'
+        # symbols that are converted only between two numbers
+        elif 0 < index < last_index:
+            # erandjuhtumid on koolon ja miinusmärk, mida käsitleme tehtemärkidena vaid siis, kui
+            # on kahe arvu vahel ja on ka eraldatud tühikutega (vastasel juhul kaetud nt 6:2 võit)
+            is_applicable = True
+            # ehkki miinusmärki kirjutatakse mõtte-, mitte sidekriipsuga, on sõnastikus sidekriips,
+            # sest lemmatiseerimisel muutub sidekriipsuks
+            if text_lemma in (':', '-'):
+                text_coordinate = text.words[index].start
+                if not (text.text[text_coordinate - 1] == ' ' and
+                        text.text[text_coordinate + 1] == ' '):
+                    is_applicable = False
+            if is_applicable and (text.words[index - 1].partofspeech[0] in ('N', 'O')) \
+                    and (text.words[index + 1].partofspeech[0] in ('N', 'O')):
+                return text_lemma, 'M'
+    
+    # ne-liitelised arvu sisaldavad sõnad asetame omadussõnaliste alla
+    elif postag in ('Y', 'A') and re.match(r'^\d+-?\w*ne$', text_lemma):
+        return text_lemma, 'A'
+    
+    # aadresside, klasside jms käsitlemine, kus sõnaliigiks Y, nt Pärna 14a või 5b
+    elif postag == 'Y' and re.search(r'\d+-?\w?$', text_lemma):
+        return text_lemma, 'K'
+    
+    return text_lemma, False
+
+
+def tag_numbers(text_string, postag, is_last_index):
+    # 9a is N/sgn, 10a is O/sgg
+    if re.search(r'\d+\-?[a]$', text_string):
+        # jäta nagu on
+        return text_string
+
+    # 13/10/2011 on miljard kolmsada kümmend üks miljonit kümmend kaks tuhat üksteist
+    if re.search(r'^\d+\/\d+\/\d+$', text_string):
+        # jäta nagu on
+        return text_string
+
+    if re.search(r'\d+', text_string):
+        # muudame lause lõpus oleva 'O' märgendi 'N'-iks (lauselõpupunkt muudab alati eelneva arvu järgarvuks);
+        # käändelõppudega arvud määratakse tihti asjatult järgarvudeks
+        if (postag == 'O' and '.' not in text_string and not re.search(r'\d+-?nd', text_string)) \
+                or (postag == 'O' and is_last_index):
+            return 'N'
+        return postag
+
+    return False
+
+
+def tag_roman_numbers(text_lemma, prev_word):
+    # üldiselt on parem midagi asendamata jätta kui valesti öelda (Ca->sajas aasta, MM-l->kahe tuhandendal)
+    # tegelikult vaja palju pisikesi erireegleid nagu: eelneb isikunimi, järgneb 'kvartal', on AC/DC jne
+    # siia minimaalne välistus, aga kahtlasi kohti on veel (IV e intravenoosne tilguti jpm)
+    if re.match('^(C|CD|DI|ID|DC|DIV|L|M|MI|MM|XL|XXL|XXX)$', text_lemma):
+        return False
+
+    # Rooma numbrile ärgu eelnegu araabia nr (12 V) või & (advokaadibüroo Y&I, R&D osakond)
+    if re.search(r'[\d&]$', prev_word):
+        return 'M'
+
+    # erandjuhtum on 'C', mida ei tohi teisendada 'sajandaks', kui eelneb kraadimärk (Celsius)
+    if text_lemma == 'C' and prev_word == '°':
+        return 'M'
+    
+    return 'O'
+
+
+"""
+Convert functions
+"""
 
 def convert_digit_block(number):
     """
+    Helper function for convert_number.
     Converts a group of 3 digits to words
     :param number: str
         number (int) as a string ('110')
@@ -62,7 +186,6 @@ def convert_digit_block(number):
         number_strings.append(cardinal_numbers[number[0]])
 
     return number_strings
-
 
 def convert_number(number, sg_nominative):
     """
@@ -119,6 +242,30 @@ def convert_number(number, sg_nominative):
     return ' '.join(number_as_string)
 
 
+def roman_to_integer(roman):
+    """
+    1001. implementation of "Convert a string of Roman numerals to an integer"
+    Returns 0 if the syntax is not correct (VX, CCD, IIII, MVM etc)
+    :param roman: str
+    :return: int
+    """
+    value = 0
+    if re.search('I{4}|X{4}|C{4}', roman): return 0
+    if re.search('V{2}|L{2}|D{2}', roman): return 0
+    roman = roman.replace("IV", "IIII").replace("IX", "VIIII")
+    roman = roman.replace("XL", "XXXX").replace("XC", "LXXXX")
+    roman = roman.replace("CD", "CCCC").replace("CM", "DCCCC")
+    if re.search('I{5}|X{5}|C{5}', roman): return 0
+    maxorder = 1000
+    for c in roman:
+        i = roman_numbers[c]
+        if i > maxorder:
+            return 0
+        else:
+            maxorder = i
+            value += i
+    return value
+
 def make_ordinal(number_as_string):
     """
     Convert a number to ordinal
@@ -158,8 +305,10 @@ def make_ordinal(number_as_string):
     else:
         return parts_as_strings
 
-
 def inflect(original_as_string, own_case, next_case, ordinal):
+    """
+    Helper function for get_string
+    """
     # original_as_string: sõne, mis koosneb algvormis sõnadest (lemmadest)
     # own_case: sõna enda käändevorm
     # next_case: lauses järgmise sobiva sõnaliigiga sõna käändevorm
@@ -217,18 +366,19 @@ def inflect(original_as_string, own_case, next_case, ordinal):
     else:
         synthesized = synthesizer.synthesize(parts_as_strings[-1], case)
         if len(synthesized) > 0:
-            inflected.append(synthesized[0])
+            inflected.append(re.sub('-essu', '-essi', synthesized[0]))
         else:
             return original_as_string
 
     inflected_as_string = ' '.join(inflected)
     return inflected_as_string
 
-
 def inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal):
+    """
+    Helper function for get_string
+    """
     # prev_lemma: märgile/ühikule eelnev lemma tekstis, nt 25% puhul on prev_lemma '25'
     # lemma: märgi/ühiku lemma, nt '%'
-    # synthesizer: Vabamorfi instants
 
     if lemma in audible_symbols:
         as_string = audible_symbols[lemma]
@@ -245,12 +395,10 @@ def inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal):
         as_string = inflect(as_string, 'sg p', '', ordinal)
     return as_string
 
-
 def get_string(text, index, tag):
     # text: lausest tehtud Text-objekt
     # index: teisendatava sõne asukoht lauses
     # tag: sõnele määratud märgend
-    # synthesizer: Vabamorfi instants
 
     ordinal = False
     ending_lemma = ''
@@ -292,7 +440,7 @@ def get_string(text, index, tag):
         # mis ei anna vajalikku teavet)
         if index < len(text.words) - 2:
             # loetelu tuvastamiseks vaatame algteksti alates käesoleva sõna algusest
-            if re.match(r'(\d+\.?,?\s)+(ja|või|ja/või|ning|ega|kui)\s\d', text.text[text.words[index].start:]):
+            if re.match(r'(((\d+\.?)|([IVXLCDM]+-?\w*)),?\s)+(ja|või|ja/või|ning|ega|kui)\s((\d)|([IVXLCDM]+))', text.text[text.words[index].start:]):
                 is_list = True
             # vahemiku tuvastamiseks vaatame järgmise sõna kuju ja ülejärgmise sõnaliiki
             if re.match(r'^(\.?([–\-]))|kuni$', text.words[index + 1].text) \
@@ -343,7 +491,10 @@ def get_string(text, index, tag):
                 current_case = word.form[0]
                 if re.match(r'(sg|pl)\s\w+', current_case):
                     if tag != 'O' and word.partofspeech[0] == 'A' and word.lemma[0].endswith('ne'):
-                        next_case = 'sg g'
+                        # changed due to sometimes getting wrong number inflections 
+                        next_case = word.form[0]
+                        #next_case = 'sg g'
+                        
                         is_adj_phrase = True
                         # print('Leidsin omadussõnalise fraasi')
                         break
@@ -405,7 +556,8 @@ def get_string(text, index, tag):
             if lemma in audible_symbols:
                 as_string = audible_symbols[lemma]
             elif lemma in abbreviations:
-                as_string = abbreviations[lemma]
+                if not (lemma == 'u' and current_case == '?'):
+                    as_string = abbreviations[lemma]
 
     # määrame tõeväärtuse ordinal (vajalik käänamise fn-i jaoks) vastavalt märgendile
     if tag == 'O':
@@ -495,6 +647,10 @@ def get_string(text, index, tag):
                     if is_adj_phrase:
                         own_case = 'sg g'
                     as_string = inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal)
+                # kui enne ühikut esineb kaldkriips
+                elif prev_lemma == '/':
+                    own_case = 'sg g'
+                    as_string = inflect_a_quantifiable(prev_lemma, lemma, own_case, ordinal) + ' kohta'
         # kui ei ole kvantifitseeritav, siis oma käände puudumisel lühendit/sümbolit ei kääna
         else:
             return as_string
@@ -502,41 +658,32 @@ def get_string(text, index, tag):
         as_string = inflect(as_string, own_case, next_case, ordinal)
     return as_string
 
+
+"""
+Postprocess functions
+"""
+
+def pronounce_names(sentence):
+    """
+    Converts names to match more closely to their correct pronunciation.
+    E.g. Jeanne d'Arc -> Žan daark
+    """
+    for word in synthesizer.analyze(sentence):
+        word_lemma = word['analysis'][0]['lemma'].replace('’', '\'')
+        if names[word_lemma]:
+            sentence = sentence.replace(word_lemma, names[word_lemma].replace('\'', ''))
+    return sentence
+
+
 def acronyms_lowercase(acro):
+    """
+    Helper function to normalize_phrase.
+    """
     seq = acro.group()
     if seq in pronounceable_acronyms:
         return seq.capitalize()
     else:
         return seq
-
-def spell_if_needed(match):
-    """
-    Most simplistic approach - any letter sequence that does not contain a vowel is unpronouncable
-    All single letters and consonant sequences are spelled out (converted to their pronunciations)
-    For example php -> pee-haa-pee
-    :param re.match
-    :return: str
-    """
-    seq = match.group()
-    if re.search('[AEIOUÕÄÖÜaeiouõäöü]', seq) and (len(seq) > 1):
-        return seq
-    else:
-        pronunciation = ""
-        for i, letter in enumerate(seq):
-            pronunciation += alphabet[letter.upper()]
-            if (i < len(seq)-1):
-                pronunciation += "-"
-        return pronunciation
-
-def read_nums_if_needed(match):
-    seq = match.group()
-    pronunciation = ""
-    if len(seq) > 5:
-        for i, letter in enumerate(seq):
-            pronunciation += convert_number(letter, True) + ' '
-    else:
-        pronunciation = convert_number(seq, True)
-    return pronunciation
 
 def normalize_phrase(phrase):
     """
@@ -579,315 +726,36 @@ def normalize_phrase(phrase):
         return phrase
 
 
-def strip_combining(s):
-    return u''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
-
-def simplify_unicode(sentence):
+def spell_if_needed(match):
     """
-    Most accented Latin characters are pronounced just the same as the base character.
-    Shrink as many extended Unicode repertoire into the Estonian alphabet as possible.
-    It is GOOD for machine learning to have smaller ortographic repertoire.
-    It is a BAD idea if we start using any proper name dictionaries for morph analysis
-      or pronunciations later on. You are warned.
-    :param sentence:
+    Most simplistic approach - any letter sequence that does not contain a vowel is unpronouncable
+    All single letters and consonant sequences are spelled out (converted to their pronunciations)
+    For example php -> pee-haa-pee
+    :param re.match
     :return: str
     """
-    sentence = sentence.replace("Ð", "D").replace("Þ", "Th")
-    sentence = sentence.replace("ð", "d").replace("þ", "th")
-    sentence = sentence.replace("ø", "ö").replace("Ø", "Ö")
-    sentence = sentence.replace("ß", "ss").replace("ẞ", "Ss")
-    sentence = re.sub(r'S(c|C)(h|H)', r'Š', sentence)
-    sentence = re.sub(r'sch', r'š', sentence)
-    sentence = re.sub(r'[ĆČ]', r'Tš', sentence)
-    sentence = re.sub(r'[ćč]', r'tš', sentence)
-
-    sentence = re.sub(r'[^A-ZÄÖÜÕŽŠa-zäöüõšž ,]+', lambda m: r'{}'.format( strip_combining(m.group(0)) ), sentence)
-    return sentence
-
-def post_process(sentence):
-    """
-    Postprocessing to normalize the sentence and convert any URLs.
-    :param sentence:
-    :return: str
-    """
-    # TODO there should be a separate URL/email processing fuction where otherwise silent characters (hyphens,
-    #  underscores) are
-    #  also read. Fortunately EstNLTK does not split URLs
-
-    sentence = re.sub(r'www\.', r' VVV punkt ', sentence)
-    sentence = re.sub(r'\.ee(?![A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt EE', sentence)
-    sentence = re.sub(r'https://', r' HTTPS koolon kaldkriips kaldkriips ', sentence)
-    sentence = re.sub(r'http://', r' HTTP koolon kaldkriips kaldkriips ', sentence)
-    sentence = re.sub(r'\?([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' küsimärk \g<1>', sentence)
-    sentence = re.sub(r'/([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' kaldkriips \g<1>', sentence)
-    sentence = re.sub(r'\.([A-ZÄÖÜÕŽŠa-zäöüõšž])', r' punkt \g<1>', sentence)
-    sentence = re.sub(r'\) ', r', ', sentence) # pausi tekitamiseks
-    sentence = re.sub(r' +', r' ', sentence)
-
-    # replace annoying long repetitions with ' repeating symbol X ',
-    # then any remaining symbols (in URLs etc) that look like audible
-    for key in last_resort:
-        korduv = re.escape(key) + '{4,}'
-        sentence = re.sub(r'{}'.format(korduv), r" korduv märk{}".format(last_resort[key]), sentence)
-    sentence = sentence.translate( str.maketrans(last_resort) )
-
-    # very long uppercase sequences are probably words
-    sentence = re.sub(r'[A-ZÄÖÜÕŽŠ,\-]{5,}', lambda m: r'{}'.format(m.group(0).lower()), sentence)
-
-    sentence = normalize_phrase(sentence)
-    """
-    Convert unpronounceable letter sequences to spelled form
-    Convert all remaining numeric sequences to words in sg. nom
-    """
-    sentence = re.sub(r'[A-ZÄÖÜÕŽŠa-zäöüõšž]{2,}', spell_if_needed, sentence)
-    sentence = re.sub(r'\d+', read_nums_if_needed, sentence)
-
-    return sentence
-
-
-def convert_sentence(sentence):
-    """
-        Converts a sentence to input supported by Estonian text-to-speech application.
-        :param sentence: str
-        :return: str
-        """
-
-    # manual substitutions:
-    # ... between numbers to kuni
-    sentence = re.sub(r'(\d)\.\.\.(\d)', r'\g<1> kuni \g<2>', sentence)
-
-    # reduce Unicode repertoire _before_ inserting any hyphens
-    sentence = simplify_unicode (sentence)
-
-    # add a hyphen between any number-letter sequences  # TODO should not be done in URLs
-    sentence = re.sub(r'(\d)([A-ZÄÖÜÕŽŠa-zäöüõšž])', r'\g<1>-\g<2>', sentence)
-    sentence = re.sub(r'([A-ZÄÖÜÕŽŠa-zäöüõšž])(\d)', r'\g<1>-\g<2>', sentence)
-    # remove grouping between numbers
-    # keeping space in 2006-10-27 12:48:50, in general require group of 3
-    sentence = re.sub(r'([0-9]) ([0-9]{3})(?!\d)', r'\g<1>\g<2>', sentence)
-
-    # Morphological analysis with estNLTK
-    text = Text(sentence).analyse('morphology')
-
-    # Dict of converable words where keys are:
-    # 'N' - cardinal numbers;
-    # 'O' - ordinal numbers;
-    # 'M' - other (audible symbols, abbreviations, units);
-    # 'A' - adjective forms vormid (eg. words with -ne/-line prefix, 10-aastane);
-    # 'K' - indeclinable forms (addresses, classes where the prefix is not an abbreviation);
-    # 'U' - urls and email addresses
-    # TODO something for URLs
-    # the value is a list of such word indexes
-
-    tag_indices = defaultdict(lambda: [])
-    num_postags = ('N', 'O')
-    misc_postags = ('Z', 'Y', 'J', 'A')
-
-    for i, postag_list in enumerate(text.morph_analysis.partofspeech):
-        text_string = text.words[i].text
-        text_lemma = text.words[i].lemma[0]
-        postag = postag_list[0]
-        last_index = len(text.words) - 1
-
-        # restore any dots inside lemmas (they dissappear when there is more than two usually)
-        # morph considers the sentence period to be a part of the lemma if unsure (eg €.). Avoid that
-        if text_lemma.count('.') < text_string.count('.') and (i < last_index or text_lemma not in audible_symbols):
-            restored_lemma = ""
-            j = 0
-            for letter in text_string:
-                if j < len(text_lemma) and letter == text_lemma[j]:
-                    restored_lemma += letter
-                    j += 1
-                elif letter == '.':
-                    restored_lemma += '.'
-                else:
-                    if j < len(text_lemma):
-                        restored_lemma += text_lemma[j:]
-                    break
-
-            text_lemma = text.morph_analysis[i].annotations[0].lemma = restored_lemma
-
-        # restore any audible symbols in lemmas (for example '+4' may become '4')
-        if text_string[0] in audible_symbols and text_lemma[0] not in audible_symbols:
-            text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string[0] + text_lemma
-
-        if postag in misc_postags:
-            # restore lemmas in abbreviation list to uppercase (lemma for 'PS' is lowercase 'ps', lemma for 'LP-l' however is 'LP')
-            # comparing text_string with text_lemma should suffice
-            if text_string in abbreviations and text_string.lower() == text_lemma:
-                text_lemma = text.morph_analysis[i].annotations[0].lemma = text_string
-            # lowercase capitalized first words in sentence/quote, otherwise abbreviation detection may fail
-            elif (i == 0 or (i > 0 and text.words[i - 1].text == '"')) and text_lemma.istitle():
-                text_lemma = text.morph_analysis[i].annotations[0].lemma = text_lemma.lower()
-                
-            if text_lemma in audible_symbols or text_lemma in abbreviations:
-                if text_lemma not in audible_connecting_symbols:
-                    tag_indices['M'].append(i)
-                    continue
-                # symbols that are converted only between two numbers
-                elif 0 < i < last_index:
-                    # erandjuhtumid on koolon ja miinusmärk, mida käsitleme tehtemärkidena vaid siis, kui
-                    # on kahe arvu vahel ja on ka eraldatud tühikutega (vastasel juhul kaetud nt 6:2 võit)
-                    is_applicable = True
-                    # ehkki miinusmärki kirjutatakse mõtte-, mitte sidekriipsuga, on sõnastikus sidekriips,
-                    # sest lemmatiseerimisel muutub sidekriipsuks
-                    if text_lemma in (':', '-'):
-                        text_coordinate = text.words[i].start
-                        if not (text.text[text_coordinate - 1] == ' ' and
-                                text.text[text_coordinate + 1] == ' '):
-                            is_applicable = False
-                    if is_applicable and (text.words[i - 1].partofspeech[0] in ('N', 'O')) \
-                            and (text.words[i + 1].partofspeech[0] in ('N', 'O')):
-                        tag_indices['M'].append(i)
-                        continue
-            # ne-liitelised arvu sisaldavad sõnad asetame omadussõnaliste alla
-            elif postag in ('Y', 'A') and re.match(r'^\d+-?\w*ne$', text_lemma):
-                tag_indices['A'].append(i)
-                continue
-            # aadresside, klasside jms käsitlemine, kus sõnaliigiks Y, nt Pärna 14a või 5b
-            elif postag == 'Y' and re.search(r'\d+-?\w?$', text_lemma):
-                tag_indices['K'].append(i)
-                continue
-
-        elif postag in num_postags:
-             # 9a is N/sgn, 10a is O/sgg
-            if re.search(r'\d+\-?[a]$', text_string):
-                # jäta nagu on
-                text.morph_analysis[i].annotations[0].lemma = text_string
-                continue
-
-            # 13/10/2011 on miljard kolmsada kümmend üks miljonit kümmend kaks tuhat üksteist
-            if re.search(r'^\d+\/\d+\/\d+$', text_string):
-                # jäta nagu on
-                text.morph_analysis[i].annotations[0].lemma = text_string
-                continue
-
-            if re.search(r'\d+', text_string):
-                # muudame lause lõpus oleva 'O' märgendi 'N'-iks (lauselõpupunkt muudab alati eelneva arvu järgarvuks);
-                # käändelõppudega arvud määratakse tihti asjatult järgarvudeks
-                if (postag == 'O' and '.' not in text_string and not re.search(r'\d+-?nd', text_string)) \
-                        or (postag == 'O' and i == last_index):
-                    postag = 'N'
-                tag_indices[postag].append(i)
-                continue
-
-        # Rooma numbrite käsitlemine (sõnaliigiks saab automaatselt 'O' või käänatuna 'Y'
-        # või käändumatu lõpuga 'H')
-
-        # vaatame lemmat ehk selle tingimuslause alla mahuvad ka õigesti käänatud ja
-        # käändelõppudega juhtumid, nt VI-le, IIIks
-        if postag in ('O', 'Y') and re.match('^[IVXLCDM]+$', text_lemma):
-            # üldiselt on parem midagi asendamata jätta kui valesti öelda (Ca->sajas aasta, MM-l->kahe tuhandendal)
-            # tegelikult vaja palju pisikesi erireegleid nagu: eelneb isikunimi, järgneb 'kvartal', on AC/DC jne
-            # siia minimaalne välistus, aga kahtlasi kohti on veel (IV e intravenoosne tilguti jpm)
-            if re.match('^(C|CD|DI|ID|DC|DIV|L|M|MI|MM|XL|XXL|XXX)$', text_lemma):
-                continue
-
-            # Rooma numbrile ärgu eelnegu araabia nr (12 V) või & (advokaadibüroo Y&I, R&D osakond)
-            if i > 0 and re.search(r'[\d&]$', text.words[i - 1].text):
-                tag_indices['M'].append(i)
-                continue
-
-            # erandjuhtum on 'C', mida ei tohi teisendada 'sajandaks', kui eelneb kraadimärk (Celsius)
-            if text_lemma == 'C' and i > 0:
-                if text.words[i - 1].text != '°':
-                    tag_indices['O'].append(i)
-                    continue
-            else:
-                tag_indices['O'].append(i)
-                continue
-        # juhtumid nagu nt VIIa või Xb klass võivad saada kas 'Y' või 'H' märgendi;
-        # lõppu lubame vaid ühe väiketähe, et vältida pärisnimede nagu
-        # Mai või Ivi Rooma numbriteks arvamist
-        # edit: selle malliga sobivad ainult väikesed numbrid
-        elif postag in ('Y', 'H') and re.match('^[IVX]+[a-z]?$', text_lemma):
-            tag_indices['O'].append(i)
-            continue
-
-        # capitalized abbreviations
-        elif postag == 'Y':
-            normalized_lemma = normalize_phrase(text_lemma)
-            if normalized_lemma != text_lemma:
-                text.morph_analysis[i].annotations[0].lemma = normalized_lemma
-                # lisaks peame käändega ettevaatlik olema, et käändelõputa Y ei ühilduks järgnevaga
-                if text.morph_analysis[i].annotations[0].form != '?': tag_indices['Y'].append(i)
-                continue
-
-        # undetected numbers with ne/line suffix
-        if re.match(r'^\d+-?[a-zA_ZäöüõÄÖÕÜšžŠŽ]+(ne|line)$', text_lemma):
-            tag_indices['A'].append(i)
-
-    # kui lauses leidub midagi, mida teisendada
-    if len(tag_indices) > 0:
-        # loome uue sõnastiku, kus võtmeteks paarid sõnade algus- ja lõpuindeksitest, väärtusteks sõnad teksti kujul
-        location_dict = {(text.words[i].start, text.words[i].end): text.words[i].text
-                         for key, value in tag_indices.items() for i in value}
-
-        # sorteerime loodud sõnastiku elemendid (ehk võti-väärtus paarid) ja teeme OrderedDicti, mis hoiab järjestust
-        location_dict = OrderedDict(sorted(location_dict.items()))
-
-        for tag in tag_indices:
-            index_list = tag_indices[tag]
-            for index in index_list:
-                # leiame sõna algus- ja lõpupositsioonid
-                start_pos = text.words[index].start
-                end_pos = text.words[index].end
-                # viime sõne kujule
-                in_string_form = get_string(text, index, tag)
-
-                # asendame location_dict sõnastikus algse teksti teisendusega
-                location_dict[(start_pos, end_pos)] = in_string_form
-
-        # vaatame läbi kõik elemendid sõnastikus location_dict (järjestatud indeksite järgi lauses)
-        new_sentence = ''
-        for i, (key, elem) in enumerate(location_dict.items()):
-            start_pos = key[0]
-            end_pos = key[1]
-            # kui teisendus on kohe lause alguses, siis tekitame esisuurtähe
-            if start_pos == 0:
-                elem = elem.capitalize()
-            # kui teisendus ei ole kohe alguses, aga asub otsekõne alguses ehk vahetult
-            # pärast jutumärki, siis tekitame samuti esisuurtähe
-            elif text.text[start_pos - 1] == '"':
-                elem = elem.capitalize()
-            # kui teisenduse algus ei ole lause esimene täht, siis vaatame, kas on vaja tühik vahele lisada
-            if start_pos > 0 and not re.match(r'[\s\d:;–\-_("]', text.text[start_pos - 1]):
-                elem = ' ' + elem
-            # kui teisenduse lõpp ei ole lause viimane täht, siis vaatame, kas on vaja tühik
-            # vahele lisada (vajalik juhtudel, kus originaallauses on tühikuta, nt 5.b)
-            if end_pos != len(text.text) and not re.match(r'[\s\d.,:;–\-_()!?"]', text.text[end_pos]):
-                elem += ' '
-            # kui tegu ei ole viimase elemendiga sõnastikus location_dict
-            if i < len(location_dict.keys()) - 1:
-                # leiame järgmise sõna alguse indeksi
-                next_index = list(location_dict.items())[i + 1][0][0]
-                # kontrollime, kas algtekstis on vaja muudatusi teha (vajalik nt vahemike puhul,
-                # kus kaks teisendust on kõrvuti ja nende vahel side- või mõttekriips,
-                # et eemaldada lõpptekstist kahe sõna vahelised kirjavahemärgid)
-                if re.match(r'^[.\s]?[\-:]\s?$', text.text[end_pos:next_index]):
-                    in_between = ' '
-                # kui tegu on mõttekriipsu või kolme punktiga kahe teisenduse vahel,
-                # siis asendame sõnaga 'kuni'
-                elif re.match(r'^\s?[.]?–\s?$', text.text[end_pos:next_index]) or \
-                        re.match(r'^\s?\.{3}\s?$', text.text[end_pos:next_index]):
-                    in_between = ' kuni '
-                else:
-                    in_between = text.text[end_pos:next_index]
-                # kui tegu on esimese elemendiga sõnastikus
-                if i == 0:
-                    new_sentence += text.text[:start_pos] + elem + in_between
-                else:
-                    new_sentence += elem + in_between
-            # kui tegu on viimase elemendiga sõnastikus location_dict
-            else:
-                if i == 0:
-                    new_sentence += text.text[:start_pos] + elem + text.text[end_pos:]
-                else:
-                    new_sentence += elem + text.text[end_pos:]
-                # kui arv lõpeb punktiga, siis võib teisendatud
-                # lause lõpust punkt kaduda
-                if text.text.endswith('.') and not new_sentence.endswith('.'):
-                    new_sentence += '.'
-        return post_process(new_sentence)
+    seq = match.group()
+    if re.search('[AEIOUÕÄÖÜaeiouõäöü]', seq) and (len(seq) > 1):
+        return seq
     else:
-        return post_process(sentence)
+        pronunciation = ""
+        for i, letter in enumerate(seq):
+            pronunciation += alphabet[letter.upper()]
+            if (i < len(seq)-1):
+                pronunciation += "-"
+        return pronunciation
+
+
+def read_nums_if_needed(match):
+    """
+    Returns number read as single digits if the number is more than 5 digits,
+    otherwise returns it read as one number.
+    """
+    seq = match.group()
+    pronunciation = ""
+    if len(seq) > 5:
+        for i, letter in enumerate(seq):
+            pronunciation += convert_number(letter, True) + ' '
+    else:
+        pronunciation = convert_number(seq, True)
+    return pronunciation
