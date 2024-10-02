@@ -17,10 +17,10 @@ The script follows the rules of Estonian orthography. Internationally used forms
 
 ### Usage
 Install from command line:\
-`pip install git+https://github.com/TartuNLP/tts_preprocess_et@main`
+`pip install git+https://github.com/TartuNLP/tts_preprocess_et@v1.0.0`
 
 Add to project (requirements.txt):\
-`git+https://github.com/TartuNLP/tts_preprocess_et@main`
+`git+https://github.com/TartuNLP/tts_preprocess_et@v1.0.0`
 
 Import:\
 `from tts_preprocess_et.convert import convert_sentence`
