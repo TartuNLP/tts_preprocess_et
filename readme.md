@@ -11,7 +11,7 @@ The script follows the rules of Estonian orthography. Internationally used forms
 
 
 ### Requirement:
-- Python (>= 3.7)
+- Python (>= 3.10)
 - EstNLTK (>= 1.7.0)
 
 
