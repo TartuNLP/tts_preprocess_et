@@ -16,20 +16,32 @@ The script follows the rules of Estonian orthography. Internationally used forms
 
 
 ### Usage
-Install from command line:\
-`pip install git+https://github.com/TartuNLP/tts_preprocess_et@v1.0.1`
+Install the latest release version as a Python library with the required dependencies:\
+```shell
+pip install git+https://github.com/TartuNLP/tts_preprocess_et.git
+```
+Alternatively you can define a specific release version or commit hash to ensure reproducibility. For example:\
+```shell
+pip install git+https://github.com/TartuNLP/tts_preprocess_et.git@v1.0.1
+```
+```shell
+pip install git+https://github.com/TartuNLP/tts_preprocess_et.git@698dcbf
+```
 
-Add to project (requirements.txt):\
-`git+https://github.com/TartuNLP/tts_preprocess_et@v1.0.1`
+Usage:
+```python
+from tts_preprocess_et.convert import convert_sentence
+convert_sentence("1, 2, 3!")
+```
+Output: `'üks, kaks, kolm!'`
 
-Import:\
-`from tts_preprocess_et.convert import convert_sentence`
+Usage with accessibility mode:
 
-Processing a sentence:\
-`processed_sentence = convert_sentence(sentence_string)`
-
-Processing with accessibility mode:\
-`processed_sentence = convert_sentence(sentence_string, accessibility=True)`
+```python
+from tts_preprocess_et.convert import convert_sentence
+convert_sentence("1, 2, 3!", accessibility=True)
+```
+Output: `'üks, kaks, kolm hüüumärk'`
 
 
 ### Features
