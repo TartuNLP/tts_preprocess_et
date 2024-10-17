@@ -10,17 +10,17 @@ The script follows the rules of Estonian orthography. Internationally used forms
 - Decimal fractions use commas (not dots)
 
 
-### Requirement:
+### Requirements:
 - Python (>= 3.10)
 - EstNLTK (>= 1.7.0)
 
 
 ### Usage
 Install from command line:\
-`pip install git+https://github.com/TartuNLP/tts_preprocess_et@v1.0.0`
+`pip install git+https://github.com/TartuNLP/tts_preprocess_et@v1.0.1`
 
 Add to project (requirements.txt):\
-`git+https://github.com/TartuNLP/tts_preprocess_et@v1.0.0`
+`git+https://github.com/TartuNLP/tts_preprocess_et@v1.0.1`
 
 Import:\
 `from tts_preprocess_et.convert import convert_sentence`
