@@ -731,11 +731,15 @@ def spell_if_needed(match):
     Most simplistic approach - any letter sequence that does not contain a vowel is unpronouncable
     All single letters and consonant sequences are spelled out (converted to their pronunciations)
     For example php -> pee-haa-pee
+    Exceptions are filler words such as "hmm", "mm", etc.
     :param re.match
     :return: str
     """
     seq = match.group()
     if re.search('[AEIOUÕÄÖÜaeiouõäöü]', seq) and (len(seq) > 1):
+        return seq
+    # if sequence contains only m and h, skip it
+    elif re.match(r'^[MHmh]+$', seq):
         return seq
     else:
         pronunciation = ""
