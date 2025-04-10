@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='tts_preprocess_et',
-    version='1.0.1',
+    version='1.1.0',
     packages=find_packages(),
     license='MIT',
     description='Preprocessing for Estonian text-to-speech applications',
