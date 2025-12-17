@@ -140,7 +140,7 @@ def tag_roman_numbers(text_lemma, prev_word):
     # üldiselt on parem midagi asendamata jätta kui valesti öelda (Ca->sajas aasta, MM-l->kahe tuhandendal)
     # tegelikult vaja palju pisikesi erireegleid nagu: eelneb isikunimi, järgneb 'kvartal', on AC/DC jne
     # siia minimaalne välistus, aga kahtlasi kohti on veel (IV e intravenoosne tilguti jpm)
-    if re.match('^(C|CD|DI|ID|DC|DIV|L|M|MI|MM|XL|XXL|XXX)$', text_lemma):
+    if re.match('^(C|CD|CV|DI|ID|DC|DIV|L|M|MI|MM|XL|XXL|XXX)$', text_lemma):
         return False
 
     # Rooma numbrile ärgu eelnegu araabia nr (12 V) või & (advokaadibüroo Y&I, R&D osakond)
